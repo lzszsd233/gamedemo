@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-
+using System.Collections;
+using Unity.Cinemachine;
 
 public class PlayerStateMachine : MonoBehaviour
 {
@@ -11,12 +12,18 @@ public class PlayerStateMachine : MonoBehaviour
     public PlayerJumpState JumpState { get; private set; }
     public PlayerWallSlideState WallSlideState { get; private set; }
     public PlayerDashState DashState { get; private set; }
+    public PlayerDieState DieState { get; private set; }
 
     //private set：意思是私有修改。只有当前这个脚本才有权力修改这个变量的值。别的脚本绝对改不了这个变量的值，只能读取它。这样做的好处是，外部脚本只能获取到状态实例，但不能随意修改它们，保证了状态的完整性和安全性。    //get：意思是允许读取。别的脚本可以获取到这个变量的值
 
     [Header("组件引用")]
     public Rigidbody2D RB { get; private set; }
+    public AnimationController Anim { get; private set; }
+    public CinemachineImpulseSource impulseSource;
 
+    [Header("视觉特效")]
+    public GameObject deathParticlesPrefab;
+    public GameObject respawnParticlesPrefab;
     [Header("输入")]
     public InputActionReference moveAction;
     public InputActionReference jumpAction; //跳跃插座
@@ -60,12 +67,19 @@ public class PlayerStateMachine : MonoBehaviour
     public float WallJumpLockCounter { get; private set; }
     public float WallJumpDirection { get; private set; } // 记录蹬墙跳的方向（-1或1）
 
+    [Header("关卡机制")]
+    public Vector2 currentCheckpoint; // 当前记录的重生点坐标
+    public float respawnDelay = 1f;   // 死亡后多久复活
+
     #endregion
     #region 2. Unity 生命周期 (Unity Lifecycle)
 
     private void Awake()
     {
         RB = GetComponent<Rigidbody2D>();
+        Anim = GetComponent<AnimationController>();
+        impulseSource = GetComponent<CinemachineImpulseSource>();
+
         defaultGravity = RB.gravityScale; // 记录初始重力
 
         // 实例化状态
@@ -73,6 +87,7 @@ public class PlayerStateMachine : MonoBehaviour
         JumpState = new PlayerJumpState(this);
         DashState = new PlayerDashState(this);
         WallSlideState = new PlayerWallSlideState(this);
+        DieState = new PlayerDieState(this);
     }
 
     private void OnEnable()
@@ -85,6 +100,7 @@ public class PlayerStateMachine : MonoBehaviour
     private void Start()
     {
         // 游戏开始，默认进入 Normal 状态
+        currentCheckpoint = transform.position;
         Initialize(NormalState);
     }
 
@@ -96,7 +112,8 @@ public class PlayerStateMachine : MonoBehaviour
         //记录玩家最后面朝的方向
         if (MoveInput.x != 0)
         {
-            FacingDir = Mathf.Sign(MoveInput.x); // Sign会返回1或-1
+            FacingDir = Mathf.Sign(MoveInput.x);
+            Anim.FlipCharacter(MoveInput.x);
         }
 
         // 更新蹬墙硬直计时器
@@ -219,4 +236,135 @@ public class PlayerStateMachine : MonoBehaviour
         float dir = Application.isPlaying ? FacingDir : 1f;
         Gizmos.DrawLine(transform.position, transform.position + Vector3.right * dir * wallCheckDistance);
     }
+
+    /// <summary>
+    /// 开启死亡表演协程
+    /// </summary>
+    public void StartDeathSequence()
+    {
+        StartCoroutine(DeathSequenceCoroutine());
+    }
+
+    private IEnumerator DeathSequenceCoroutine()
+    {
+
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.SetUILock(true);
+        }
+
+        if (impulseSource != null)
+        {
+            impulseSource.GenerateImpulse();
+        }
+        // 尸体弹飞
+        yield return new WaitForSeconds(0.15f);//只能在协程中使用的延时等待类
+
+        RB.linearVelocity = Vector2.zero;
+        RB.gravityScale = 0f;
+
+        Anim.GetComponent<SpriteRenderer>().enabled = false;//unity生命周期，不能关闭自身，只能管SpriteRenderer组件的显示与否
+
+
+        PlayDeathEffects();
+
+        yield return new WaitForSeconds(0.4f);
+
+        // ================= 第 3 幕：呼叫转场大管家！ =================
+        // 我们把复活的逻辑打包成一个 Lambda 表达式 (就是那个 () => { ... })，作为参数传给管家
+        // 管家会在屏幕【完全黑掉的那一瞬间】，执行这个大括号里的逻辑！
+        TransitionManager.Instance.StartTransition(transform.position, () =>
+        {
+            // -------------------- 全黑时刻发生的事 --------------------
+            // 仅仅是偷偷把隐身的尸体运过去，不显示！
+            PrepareForRespawn();
+
+            // 开启一个新的协程，专门负责“黑幕展开后的重生表演”
+            StartCoroutine(RespawnSequenceCoroutine());
+        });
+    }
+
+    private IEnumerator RespawnSequenceCoroutine()
+    {
+        // 1. 稍微等一下，让黑幕先展开一点点，不要刚全黑就爆特效
+        yield return new WaitForSeconds(0.2f);
+
+        PlayRespawnEffects();
+
+        yield return new WaitForSeconds(0.3f);
+
+        FinalizeRespawn();
+    }
+
+
+    public void PrepareForRespawn()
+    {
+        transform.position = currentCheckpoint;
+
+        RB.linearVelocity = Vector2.zero;
+        RB.gravityScale = 0f;
+
+    }
+
+    public void FinalizeRespawn()
+    {
+        RB.gravityScale = defaultGravity;
+
+        Anim.GetComponent<SpriteRenderer>().enabled = true;
+
+        ChangeState(NormalState);
+
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.SetUILock(false);
+        }
+    }
+
+    /// <summary>
+    /// 在玩家当前位置，瞬间生成并播放死亡粒子特效
+    /// </summary>
+    public void PlayDeathEffects()
+    {
+        if (deathParticlesPrefab != null)
+        {
+            Instantiate(deathParticlesPrefab, transform.position, Quaternion.identity);
+
+            // TODO: 未来可以在这里加上死亡音效的代码
+            // AudioManager.PlaySound("Player_Death");
+        }
+    }
+
+    /// <summary>
+    /// 播放向内聚拢的重生特效
+    /// </summary>
+    public void PlayRespawnEffects()
+    {
+        if (respawnParticlesPrefab != null)
+        {
+            Instantiate(respawnParticlesPrefab, transform.position, Quaternion.identity);
+        }
+    }
+
+    #region 触发器检测 (Triggers)
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        IHazard hazard = collision.GetComponent<IHazard>();
+
+        if (hazard != null)
+        {
+            if (CurrentState != DieState)
+            {
+                ChangeState(DieState);
+            }
+        }
+
+        IInteractable interactable = collision.GetComponent<IInteractable>();
+
+        if (interactable != null)
+        {
+            interactable.Interact(this);
+        }
+    }
+
+    #endregion
 }

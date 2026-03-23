@@ -18,6 +18,15 @@ public class PlayerJumpState : PlayerState
     {
         base.LogicUpdate();
 
+        if (stateMachine.RB.linearVelocity.y > 0)
+        {
+            stateMachine.Anim.PlayJump();
+        }
+        else
+        {
+            stateMachine.Anim.PlayFall();
+        }
+
         // 跳跃打断 (Jump Cut)
         // 如果玩家在上升过程中（y速度>0），并且松开了跳跃键
         if (stateMachine.RB.linearVelocity.y > 0 && Keyboard.current.spaceKey.wasReleasedThisFrame)

@@ -21,6 +21,15 @@ public class PlayerNormalState : PlayerState
     {
         base.LogicUpdate();
 
+        if (Mathf.Abs(stateMachine.MoveInput.x) > 0)
+        {
+            stateMachine.Anim.PlayRun();
+        }
+        else
+        {
+            stateMachine.Anim.PlayIdle();
+        }
+
         //判断“跳跃缓冲池”里是否有剩余时间
         if (stateMachine.CoyoteTimeCounter > 0f && stateMachine.JumpBufferCounter > 0f)
         {

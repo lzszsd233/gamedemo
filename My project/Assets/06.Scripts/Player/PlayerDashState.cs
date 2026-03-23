@@ -12,6 +12,8 @@ public class PlayerDashState : PlayerState
     {
         base.Enter();
 
+        stateMachine.Anim.PlayDash();
+
         stateMachine.CanDash = false;
         dashStartTime = Time.time;
         stateMachine.RB.gravityScale = 0f;

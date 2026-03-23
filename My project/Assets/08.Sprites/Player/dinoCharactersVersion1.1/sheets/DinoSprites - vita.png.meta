@@ -106,7 +106,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 1
+    filterMode: 0
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -120,7 +120,7 @@ TextureImporter:
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 100
+  spritePixelsToUnits: 16
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -144,7 +144,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -169,220 +169,220 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: DinoSprites - vita_0
+      name: DinoSprites - vita_Idle0
       rect:
         serializedVersion: 2
-        x: 3
-        y: 2
-        width: 17
-        height: 19
+        x: 4
+        y: 3
+        width: 15
+        height: 17
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 968bed8595f73cc10800000000000000
+      spriteID: e5379d00eb6a8a34a901236761403210
       internalID: 2072640275240368233
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: DinoSprites - vita_1
+      name: DinoSprites - vita_Idle1
       rect:
         serializedVersion: 2
-        x: 27
-        y: 2
-        width: 17
-        height: 19
+        x: 28
+        y: 3
+        width: 15
+        height: 17
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 04febf42ccb5de950800000000000000
+      spriteID: 78294f0ac6c33904faae3f3014038229
       internalID: 6479936371207958336
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: DinoSprites - vita_2
+      name: DinoSprites - vita_Idle2
       rect:
         serializedVersion: 2
-        x: 51
-        y: 2
-        width: 17
-        height: 18
+        x: 52
+        y: 3
+        width: 15
+        height: 16
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: c1cd35510d0a10520800000000000000
+      spriteID: 326f8b3f7fc7ab64b8ce59996278b65d
       internalID: 2666589269951503388
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: DinoSprites - vita_3
+      name: DinoSprites - vita_ldle3
       rect:
         serializedVersion: 2
-        x: 75
-        y: 2
-        width: 17
-        height: 19
+        x: 76
+        y: 3
+        width: 15
+        height: 17
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: ab8234cf0dd87a4e0800000000000000
+      spriteID: fc331240762114a479554f750fadf101
       internalID: -1970450383226328902
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: DinoSprites - vita_4
+      name: DinoSprites - vita_run0
       rect:
         serializedVersion: 2
-        x: 99
-        y: 3
-        width: 17
-        height: 18
+        x: 100
+        y: 4
+        width: 15
+        height: 16
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 31c508b881025b570800000000000000
+      spriteID: 17facbfa6e8d75d409cc8a7f95bf0c4c
       internalID: 8481720763013946387
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: DinoSprites - vita_5
+      name: DinoSprites - vita_run1
       rect:
         serializedVersion: 2
-        x: 123
-        y: 2
-        width: 17
-        height: 18
+        x: 124
+        y: 3
+        width: 15
+        height: 16
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: add97f64b1f6970a0800000000000000
+      spriteID: f88d62af2fc43bf4b88a2dca4aa94ada
       internalID: -6883348392513659430
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: DinoSprites - vita_6
+      name: DinoSprites - vita_run2
       rect:
         serializedVersion: 2
-        x: 147
-        y: 2
-        width: 17
-        height: 19
+        x: 148
+        y: 3
+        width: 15
+        height: 17
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: fcab5e0d38f8738a0800000000000000
+      spriteID: 239f3ccf4e8dcc74d976b1492108882c
       internalID: -6325429355310368049
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: DinoSprites - vita_7
+      name: DinoSprites - vita_run3
       rect:
         serializedVersion: 2
-        x: 171
-        y: 3
-        width: 17
-        height: 18
+        x: 172
+        y: 4
+        width: 15
+        height: 16
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 22da5e1cb4c514000800000000000000
+      spriteID: c49c5e77c612ad04fa783299d4fcafa9
       internalID: 18397353931549986
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: DinoSprites - vita_8
+      name: DinoSprites - vita_run4
       rect:
         serializedVersion: 2
-        x: 195
-        y: 2
-        width: 17
-        height: 18
+        x: 196
+        y: 3
+        width: 15
+        height: 16
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 0d86ab3488366a2c0800000000000000
+      spriteID: 167964685d5ebb946a7199c63b5ef296
       internalID: -4420736547314571056
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: DinoSprites - vita_9
+      name: DinoSprites - vita_run5
       rect:
         serializedVersion: 2
-        x: 219
-        y: 2
-        width: 17
-        height: 19
+        x: 220
+        y: 3
+        width: 15
+        height: 17
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: f497fae5b0c335b70800000000000000
+      spriteID: 667d0c724b033594db92002b743ebdcf
       internalID: 8886512509262985551
       vertices: []
       indices: 
@@ -392,63 +392,63 @@ TextureImporter:
       name: DinoSprites - vita_10
       rect:
         serializedVersion: 2
-        x: 243
-        y: 2
-        width: 17
-        height: 19
+        x: 244
+        y: 3
+        width: 15
+        height: 17
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: dff0e269c396ab480800000000000000
+      spriteID: 24bc79eb794a77b43b4e73465faa5246
       internalID: -8882671606096326659
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: DinoSprites - vita_11
+      name: DinoSprites - jump0
       rect:
         serializedVersion: 2
-        x: 265
-        y: 2
-        width: 17
-        height: 19
+        x: 266
+        y: 3
+        width: 15
+        height: 17
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: b73b4b7f5614b98c0800000000000000
+      spriteID: 69f688eaae2e99448a9f5ce6bf3137a5
       internalID: -3991524738530495621
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: DinoSprites - vita_12
+      name: DinoSprites - jump1
       rect:
         serializedVersion: 2
-        x: 291
-        y: 2
-        width: 17
-        height: 20
+        x: 292
+        y: 3
+        width: 15
+        height: 18
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: caad1991418c5c0c0800000000000000
+      spriteID: cb2eedd6c7154ed4e868609d55518380
       internalID: -4556015459361498452
       vertices: []
       indices: 
@@ -458,19 +458,19 @@ TextureImporter:
       name: DinoSprites - vita_13
       rect:
         serializedVersion: 2
-        x: 315
-        y: 2
-        width: 17
-        height: 19
+        x: 316
+        y: 3
+        width: 15
+        height: 17
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 1210ced3614c9c220800000000000000
+      spriteID: 1b2d906e0d56cca4f8d7bac2b16e6e54
       internalID: 2506750267415593249
       vertices: []
       indices: 
@@ -480,19 +480,19 @@ TextureImporter:
       name: DinoSprites - vita_14
       rect:
         serializedVersion: 2
-        x: 339
-        y: 2
-        width: 17
-        height: 20
+        x: 340
+        y: 3
+        width: 15
+        height: 18
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 1218fb9820d79f0f0800000000000000
+      spriteID: fe97a66ca681b7d4498fc3c6bba54c2d
       internalID: -1082696785551458015
       vertices: []
       indices: 
@@ -502,19 +502,19 @@ TextureImporter:
       name: DinoSprites - vita_15
       rect:
         serializedVersion: 2
-        x: 361
-        y: 2
-        width: 17
-        height: 19
+        x: 362
+        y: 3
+        width: 15
+        height: 17
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: c2c90bfcbd949ecc0800000000000000
+      spriteID: f303ca0a169cab447bb253ffd6b0178c
       internalID: -3681330011967546324
       vertices: []
       indices: 
@@ -524,19 +524,19 @@ TextureImporter:
       name: DinoSprites - vita_16
       rect:
         serializedVersion: 2
-        x: 385
-        y: 2
-        width: 17
-        height: 19
+        x: 386
+        y: 3
+        width: 15
+        height: 17
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 8414a5039e06d51f0800000000000000
+      spriteID: 2f1333929355095408b09f0c9e3a3fdb
       internalID: -1054580183079960248
       vertices: []
       indices: 
@@ -546,41 +546,41 @@ TextureImporter:
       name: DinoSprites - vita_17
       rect:
         serializedVersion: 2
-        x: 413
-        y: 2
-        width: 20
-        height: 16
+        x: 414
+        y: 3
+        width: 18
+        height: 14
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 7ad5139593c109b90800000000000000
+      spriteID: 36000da25f4025a40ac063a5bcdb18a3
       internalID: -7237253568549266009
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: DinoSprites - vita_18
+      name: DinoSprites - dash
       rect:
         serializedVersion: 2
-        x: 437
-        y: 4
-        width: 20
-        height: 15
+        x: 438
+        y: 5
+        width: 18
+        height: 13
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: c8e3bbeb641bf04b0800000000000000
+      spriteID: f23c32f16d4be9b4bbec5ee3b78d4754
       internalID: -5471960104826093940
       vertices: []
       indices: 
@@ -590,19 +590,19 @@ TextureImporter:
       name: DinoSprites - vita_19
       rect:
         serializedVersion: 2
-        x: 461
-        y: 2
-        width: 20
-        height: 16
+        x: 462
+        y: 3
+        width: 18
+        height: 14
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 34f20b7292723d480800000000000000
+      spriteID: 94d33f72729b7af47b16cb0981a2b6dd
       internalID: -8875707382904115389
       vertices: []
       indices: 
@@ -612,19 +612,19 @@ TextureImporter:
       name: DinoSprites - vita_20
       rect:
         serializedVersion: 2
-        x: 485
-        y: 3
-        width: 20
-        height: 16
+        x: 486
+        y: 4
+        width: 18
+        height: 14
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 7bcb5ae29268d1200800000000000000
+      spriteID: 7a55fc16d6d5da24fac71cfcf99c6d07
       internalID: 152425473834859703
       vertices: []
       indices: 
@@ -634,19 +634,19 @@ TextureImporter:
       name: DinoSprites - vita_21
       rect:
         serializedVersion: 2
-        x: 509
-        y: 4
-        width: 20
-        height: 15
+        x: 510
+        y: 5
+        width: 18
+        height: 13
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: ddf4bfcbb8a6c9040800000000000000
+      spriteID: fc7a1431c975ec0478adfebd3d21977d
       internalID: 4655713263197835229
       vertices: []
       indices: 
@@ -656,19 +656,19 @@ TextureImporter:
       name: DinoSprites - vita_22
       rect:
         serializedVersion: 2
-        x: 533
-        y: 2
-        width: 20
-        height: 16
+        x: 534
+        y: 3
+        width: 18
+        height: 14
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 16dd9dca062e303b0800000000000000
+      spriteID: 16f7de31f79dff148a8667028bc12f8b
       internalID: -5547341411145622175
       vertices: []
       indices: 
@@ -678,20 +678,42 @@ TextureImporter:
       name: DinoSprites - vita_23
       rect:
         serializedVersion: 2
-        x: 557
-        y: 3
-        width: 19
-        height: 16
+        x: 558
+        y: 4
+        width: 18
+        height: 14
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: b5fa7761d3b73ff10800000000000000
+      spriteID: 3b434a98f5b4c884b965ff6756e01e77
       internalID: 2302319336816619355
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DinoSprites - vita_0
+      rect:
+        serializedVersion: 2
+        x: 371
+        y: 15
+        width: 13
+        height: 1
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bcd68bbbcd7a06646aefc34316911879
+      internalID: 733470332
       vertices: []
       indices: 
       edges: []
@@ -700,7 +722,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: 290716a24d31ac345ab6c440b0d9fb0f
     internalID: 0
     vertices: []
     indices: 
@@ -710,30 +732,31 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      DinoSprites - vita_0: 2072640275240368233
-      DinoSprites - vita_1: 6479936371207958336
+      DinoSprites - dash: -5471960104826093940
+      DinoSprites - jump0: -3991524738530495621
+      DinoSprites - jump1: -4556015459361498452
+      DinoSprites - vita_0: 733470332
       DinoSprites - vita_10: -8882671606096326659
-      DinoSprites - vita_11: -3991524738530495621
-      DinoSprites - vita_12: -4556015459361498452
       DinoSprites - vita_13: 2506750267415593249
       DinoSprites - vita_14: -1082696785551458015
       DinoSprites - vita_15: -3681330011967546324
       DinoSprites - vita_16: -1054580183079960248
       DinoSprites - vita_17: -7237253568549266009
-      DinoSprites - vita_18: -5471960104826093940
       DinoSprites - vita_19: -8875707382904115389
-      DinoSprites - vita_2: 2666589269951503388
       DinoSprites - vita_20: 152425473834859703
       DinoSprites - vita_21: 4655713263197835229
       DinoSprites - vita_22: -5547341411145622175
       DinoSprites - vita_23: 2302319336816619355
-      DinoSprites - vita_3: -1970450383226328902
-      DinoSprites - vita_4: 8481720763013946387
-      DinoSprites - vita_5: -6883348392513659430
-      DinoSprites - vita_6: -6325429355310368049
-      DinoSprites - vita_7: 18397353931549986
-      DinoSprites - vita_8: -4420736547314571056
-      DinoSprites - vita_9: 8886512509262985551
+      DinoSprites - vita_Idle0: 2072640275240368233
+      DinoSprites - vita_Idle1: 6479936371207958336
+      DinoSprites - vita_Idle2: 2666589269951503388
+      DinoSprites - vita_ldle3: -1970450383226328902
+      DinoSprites - vita_run0: 8481720763013946387
+      DinoSprites - vita_run1: -6883348392513659430
+      DinoSprites - vita_run2: -6325429355310368049
+      DinoSprites - vita_run3: 18397353931549986
+      DinoSprites - vita_run4: -4420736547314571056
+      DinoSprites - vita_run5: 8886512509262985551
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
