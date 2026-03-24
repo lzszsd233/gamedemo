@@ -10,12 +10,10 @@ public class Spring : MonoBehaviour, IInteractable
 
     public void Interact(PlayerStateMachine player)
     {
-        player.RB.linearVelocity = Vector2.zero;
-
-        player.RB.linearVelocity = transform.up * bounceForce;
+        player.Speed = Vector2.zero;
+        player.Speed = transform.up * bounceForce;
 
         player.CanDash = true;
-
         player.ChangeState(player.JumpState);
     }
 }

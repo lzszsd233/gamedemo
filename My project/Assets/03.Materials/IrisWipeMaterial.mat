@@ -41,8 +41,8 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _CenterX: 0.4162525
-    - _CenterY: 0.47366065
+    - _CenterX: 0.40774384
+    - _CenterY: 0.4589839
     - _EnableExternalAlpha: 0
     - _Radius: 1.5
     - _ZWrite: 0

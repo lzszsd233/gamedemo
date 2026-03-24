@@ -13,6 +13,7 @@ public class PlayerStateMachine : MonoBehaviour
     public PlayerWallSlideState WallSlideState { get; private set; }
     public PlayerDashState DashState { get; private set; }
     public PlayerDieState DieState { get; private set; }
+    public PlayerClimbState ClimbState { get; private set; }
 
     //private set：意思是私有修改。只有当前这个脚本才有权力修改这个变量的值。别的脚本绝对改不了这个变量的值，只能读取它。这样做的好处是，外部脚本只能获取到状态实例，但不能随意修改它们，保证了状态的完整性和安全性。    //get：意思是允许读取。别的脚本可以获取到这个变量的值
 
@@ -28,17 +29,29 @@ public class PlayerStateMachine : MonoBehaviour
     public InputActionReference moveAction;
     public InputActionReference jumpAction; //跳跃插座
     public InputActionReference dashAction; //冲刺插座
+    public InputActionReference grabAction;
     public Vector2 MoveInput { get; private set; }
+
+    // ================= 蔚蓝自定义物理引擎 =================
+    [Header("自定义物理引擎")]
+    // 替代 rb.velocity！我们所有状态修改的都是这个 Speed！
+    public Vector2 Speed;
+    // 亚像素累加器（极其核心！）
+    private Vector2 positionRemainder;
+    // 碰撞盒，用于计算包围盒（AABB）射线
+    private BoxCollider2D col;
+    // ======================================================
 
     [Header("移动配置")]
     public float moveSpeed = 8f;
     public float FacingDir { get; private set; } = 1f; // 1是右，-1是左，默认朝右
 
     [Header("跳跃手感参数")]
-    public float jumpForce = 12f;          // 起跳力度
-    public float fallGravityMult = 2.5f;   // 下落时的重力倍数（越大掉得越快）
+    public float jumpForce = 16f;          // 起跳力度
+    public float fallGravityMult = 1.5f;   // 下落时的重力倍数（越大掉得越快）
     public float jumpCutMult = 0.5f;       // 松开跳跃键时，速度保留的比例
-    public float defaultGravity { get; private set; }  // 存储刚体原本的重力（通常是1）
+    public float customGravity = 30f;    // 自定义物理的重力加速度
+    public float maxFallSpeed = -20f;    // 最大下落速度
 
     [Header("蹬墙跳参数")]
     public float wallJumpForceY = 16f; // 蹬墙向上弹的力（通常比普通跳稍小一点）
@@ -49,6 +62,13 @@ public class PlayerStateMachine : MonoBehaviour
     public float dashSpeed = 24f;      // 冲刺爆发速度
     public float dashDuration = 0.2f;  // 冲刺持续时间
     public bool CanDash { get; set; }  // 当前是否可以冲刺（充能标识）
+
+    [Header("攀爬配置")]
+    public float climbSpeed = 4f;        // 爬墙速度
+    public float maxStamina = 110f;      // 最大体力值
+    public float climbStaminaCost = 45f; // 向上爬每秒消耗的体力
+    public float holdStaminaCost = 10f;  // 挂在墙上不动每秒消耗的体力
+    public float CurrentStamina { get; set; }
 
     [Header("宽容度机制")]
     public float jumpBufferTime = 0.15f; // 记住按键的时间
@@ -77,10 +97,9 @@ public class PlayerStateMachine : MonoBehaviour
     private void Awake()
     {
         RB = GetComponent<Rigidbody2D>();
+        col = GetComponent<BoxCollider2D>();
         Anim = GetComponent<AnimationController>();
         impulseSource = GetComponent<CinemachineImpulseSource>();
-
-        defaultGravity = RB.gravityScale; // 记录初始重力
 
         // 实例化状态
         NormalState = new PlayerNormalState(this);
@@ -88,6 +107,7 @@ public class PlayerStateMachine : MonoBehaviour
         DashState = new PlayerDashState(this);
         WallSlideState = new PlayerWallSlideState(this);
         DieState = new PlayerDieState(this);
+        ClimbState = new PlayerClimbState(this);
     }
 
     private void OnEnable()
@@ -95,6 +115,7 @@ public class PlayerStateMachine : MonoBehaviour
         if (moveAction != null) moveAction.action.Enable();
         if (jumpAction != null) jumpAction.action.Enable();
         if (dashAction != null) dashAction.action.Enable();
+        if (grabAction != null) grabAction.action.Enable();
     }
 
     private void Start()
@@ -154,6 +175,11 @@ public class PlayerStateMachine : MonoBehaviour
         {
             CurrentState.LogicUpdate();
         }
+
+        if (IsGrounded())
+        {
+            CurrentStamina = maxStamina;
+        }
     }
 
     private void FixedUpdate()
@@ -161,6 +187,9 @@ public class PlayerStateMachine : MonoBehaviour
         if (CurrentState != null)
         {
             CurrentState.PhysicsUpdate();
+
+            MoveH(Speed.x * Time.fixedDeltaTime * 50f);
+            MoveV(Speed.y * Time.fixedDeltaTime * 50f);
         }
     }
 
@@ -169,6 +198,7 @@ public class PlayerStateMachine : MonoBehaviour
         if (moveAction != null) moveAction.action.Disable();
         if (jumpAction != null) jumpAction.action.Disable();
         if (dashAction != null) dashAction.action.Disable();
+        if (grabAction != null) grabAction.action.Disable();
     }
     #endregion
     #region 3. 状态机核心逻辑
@@ -193,17 +223,16 @@ public class PlayerStateMachine : MonoBehaviour
     // 地面检测
     public bool IsGrounded()
     {
-        // 向下发射射线
-        RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, groundCheckDistance, groundLayer);
-        return hit.collider != null; // 只要射线碰到东西，就返回 true
+        // 把碰撞盒往下挪一点点(0.05f)探测
+        Vector2 checkPos = RB.position + col.offset + new Vector2(0, -0.05f);
+        return Physics2D.OverlapBox(checkPos, col.size, 0, groundLayer);
     }
 
     public bool IsTouchingWall()
     {
-        // 向着玩家当前面朝的方向（FacingDir）发射射线
-        // 这里我们复用 groundLayer，因为在 2D 平台游戏里，地板和墙壁通常都是同一个 Layer
-        RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.right * FacingDir, wallCheckDistance, groundLayer);
-        return hit.collider != null;
+        // 往面朝方向挪一点点探测
+        Vector2 checkPos = RB.position + col.offset + new Vector2(FacingDir * 0.05f, 0);
+        return Physics2D.OverlapBox(checkPos, col.size, 0, groundLayer);
     }
 
     // 跳跃成功后调用，清空缓冲池
@@ -225,16 +254,21 @@ public class PlayerStateMachine : MonoBehaviour
         WallJumpDirection = direction; // 记住被弹开的方向
     }
     #endregion
-    // 编辑器里看到射线长度
+
     private void OnDrawGizmosSelected()
     {
-        Gizmos.color = Color.red;
-        //地面检测
-        Gizmos.DrawLine(transform.position, transform.position + Vector3.down * groundCheckDistance);
-        //墙壁检测
-        // 注意：在编辑器未运行时 FacingDir 可能是 0，所以默认画向右的线
-        float dir = Application.isPlaying ? FacingDir : 1f;
-        Gizmos.DrawLine(transform.position, transform.position + Vector3.right * dir * wallCheckDistance);
+        if (Application.isPlaying && col != null)
+        {
+            Gizmos.color = Color.red;
+            // 画出向下探测地面的红框
+            Vector2 groundCheckPos = RB.position + col.offset + new Vector2(0, -0.05f);
+            Gizmos.DrawWireCube(groundCheckPos, col.size);
+
+            // 画出向前方探测墙壁的蓝框
+            Gizmos.color = Color.blue;
+            Vector2 wallCheckPos = RB.position + col.offset + new Vector2(FacingDir * 0.05f, 0);
+            Gizmos.DrawWireCube(wallCheckPos, col.size);
+        }
     }
 
     /// <summary>
@@ -260,8 +294,7 @@ public class PlayerStateMachine : MonoBehaviour
         // 尸体弹飞
         yield return new WaitForSeconds(0.15f);//只能在协程中使用的延时等待类
 
-        RB.linearVelocity = Vector2.zero;
-        RB.gravityScale = 0f;
+        Speed = Vector2.zero;
 
         Anim.GetComponent<SpriteRenderer>().enabled = false;//unity生命周期，不能关闭自身，只能管SpriteRenderer组件的显示与否
 
@@ -301,14 +334,12 @@ public class PlayerStateMachine : MonoBehaviour
     {
         transform.position = currentCheckpoint;
 
-        RB.linearVelocity = Vector2.zero;
-        RB.gravityScale = 0f;
+        Speed = Vector2.zero;
 
     }
 
     public void FinalizeRespawn()
     {
-        RB.gravityScale = defaultGravity;
 
         Anim.GetComponent<SpriteRenderer>().enabled = true;
 
@@ -356,6 +387,7 @@ public class PlayerStateMachine : MonoBehaviour
             {
                 ChangeState(DieState);
             }
+            return;
         }
 
         IInteractable interactable = collision.GetComponent<IInteractable>();
@@ -367,4 +399,83 @@ public class PlayerStateMachine : MonoBehaviour
     }
 
     #endregion
+
+    /// <summary>
+    /// 水平移动
+    /// </summary>
+    public void MoveH(float moveAmount)
+    {
+        positionRemainder.x += moveAmount;
+        int move = Mathf.RoundToInt(positionRemainder.x);
+
+        if (move != 0)
+        {
+            positionRemainder.x -= move;
+            int sign = (int)Mathf.Sign(move);
+
+            // 【核心修复】：提取当前实际位置，用它来做步进计算
+            Vector2 currentPos = transform.position;
+
+            while (move != 0)
+            {
+                // 用 currentPos 去做探测，这样每次循环起点都在往前推
+                Vector2 checkPos = currentPos + new Vector2(sign * 0.02f, 0);
+                bool hitWall = Physics2D.OverlapBox(checkPos + col.offset, col.size, 0, groundLayer);
+
+                if (!hitWall)
+                {
+                    currentPos += new Vector2(sign * 0.02f, 0); // 更新局部位置
+                    move -= sign;
+                }
+                else
+                {
+                    Speed.x = 0f;
+                    positionRemainder.x = 0f;
+                    break;
+                }
+            }
+
+            // 【核心修复】：循环结束后，一次性将最终计算出的位置赋给玩家
+            transform.position = currentPos;
+        }
+    }
+
+    /// <summary>
+    /// 垂直移动
+    /// </summary>
+    public void MoveV(float moveAmount)
+    {
+        positionRemainder.y += moveAmount;
+        int move = Mathf.RoundToInt(positionRemainder.y);
+
+        if (move != 0)
+        {
+            positionRemainder.y -= move;
+            int sign = (int)Mathf.Sign(move);
+
+            // 【核心修复】：提取当前实际位置
+            Vector2 currentPos = transform.position;
+
+            while (move != 0)
+            {
+                Vector2 checkPos = currentPos + new Vector2(0, sign * 0.02f);
+                bool hitGround = Physics2D.OverlapBox(checkPos + col.offset, col.size, 0, groundLayer);
+
+                if (!hitGround)
+                {
+                    currentPos += new Vector2(0, sign * 0.02f);
+                    move -= sign;
+                }
+                else
+                {
+                    Speed.y = 0f;
+                    positionRemainder.y = 0f;
+                    break;
+                }
+            }
+
+            // 【核心修复】：赋值最终位置
+            transform.position = currentPos;//物理引擎与 Transform 的数据同步不是实时的。
+        }
+    }
 }

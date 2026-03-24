@@ -150,7 +150,7 @@ Rigidbody2D:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 124342077}
-  m_BodyType: 0
+  m_BodyType: 1
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
@@ -303,15 +303,23 @@ MonoBehaviour:
   moveAction: {fileID: -1680190386980627800, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
   jumpAction: {fileID: -2099379676528639254, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
   dashAction: {fileID: -7471211009204490832, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
-  moveSpeed: 10
-  jumpForce: 18
+  grabAction: {fileID: -2971121082960099098, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+  Speed: {x: 0, y: 0}
+  moveSpeed: 8
+  jumpForce: 12
   fallGravityMult: 2
   jumpCutMult: 0.5
-  wallJumpForceY: 16
-  wallJumpForceX: 15
-  wallJumpDuration: 0.28
+  customGravity: 30
+  maxFallSpeed: -20
+  wallJumpForceY: 13
+  wallJumpForceX: 6
+  wallJumpDuration: 0.3
   dashSpeed: 24
   dashDuration: 0.2
+  climbSpeed: 4
+  maxStamina: 110
+  climbStaminaCost: 45
+  holdStaminaCost: 10
   jumpBufferTime: 0.15
   coyoteTime: 0.15
   groundLayer:

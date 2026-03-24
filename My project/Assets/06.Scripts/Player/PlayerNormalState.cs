@@ -12,8 +12,6 @@ public class PlayerNormalState : PlayerState
     public override void Enter()
     {
         base.Enter();
-        //TODO: 触发 Idle/Run 动画状态切换
-        Debug.Log("进入了 Normal 状态！");
     }
 
 
@@ -37,8 +35,7 @@ public class PlayerNormalState : PlayerState
             stateMachine.ConsumeJumpBuffer();//落地瞬间会连续起跳
             stateMachine.ConsumeCoyoteTime();//起跳瞬间还能再跳
 
-            // 在这里瞬间给予向上的速度,起跳的动力由离开地面的这一刻决定,让jump变成纯粹滞空状态
-            stateMachine.RB.linearVelocity = new Vector2(stateMachine.RB.linearVelocity.x, stateMachine.jumpForce);
+            stateMachine.Speed.y = stateMachine.jumpForce;
 
             // 切换到跳跃状态
             stateMachine.ChangeState(stateMachine.JumpState);
@@ -61,14 +58,22 @@ public class PlayerNormalState : PlayerState
     {
         base.PhysicsUpdate();
 
-        float targetVelocityX = stateMachine.MoveInput.x * stateMachine.moveSpeed;
-        stateMachine.RB.linearVelocity = new Vector2(targetVelocityX, stateMachine.RB.linearVelocity.y);
+        // 【修改这里】：算出玩家期望的目标速度
+        float targetSpeedX = stateMachine.MoveInput.x * stateMachine.moveSpeed;
+
+        // 设定地面加速度。数值越大，起步和刹车越快（100f 手感比较紧凑，类似蔚蓝；如果调小就会像冰面）
+        float groundAcceleration = 100f;
+
+        // 【核心魔法】：让当前速度，以地面加速度，平滑地趋近于目标速度
+        stateMachine.Speed.x = Mathf.MoveTowards(stateMachine.Speed.x, targetSpeedX, groundAcceleration * Time.fixedDeltaTime);
+
+        // 模拟重力
+        stateMachine.Speed.y -= stateMachine.customGravity * Time.fixedDeltaTime;
     }
 
     // 当玩家离开这个状态执行
     public override void Exit()
     {
         base.Exit();
-        Debug.Log("退出了 Normal 状态！");
     }
 }

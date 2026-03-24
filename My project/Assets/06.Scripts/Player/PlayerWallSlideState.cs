@@ -9,8 +9,7 @@ public class PlayerWallSlideState : PlayerState
     public override void Enter()
     {
         base.Enter();
-        // 进入滑墙状态时，确保重力是正常的
-        stateMachine.RB.gravityScale = stateMachine.defaultGravity;
+        stateMachine.Speed.x = 0f;
     }
 
     public override void LogicUpdate()
@@ -43,8 +42,8 @@ public class PlayerWallSlideState : PlayerState
             // 获取跳跃的反方向
             float jumpDirection = -stateMachine.FacingDir;
 
-            // 瞬间赋予斜向爆发力
-            stateMachine.RB.linearVelocity = new Vector2(jumpDirection * stateMachine.wallJumpForceX, stateMachine.wallJumpForceY);
+            // 直接修改自定义速度 Speed
+            stateMachine.Speed = new Vector2(jumpDirection * stateMachine.wallJumpForceX, stateMachine.wallJumpForceY);
 
             // 接下来 0.15 秒不要听玩家的左右摇杆
             stateMachine.SetWallJumpLock(jumpDirection);
@@ -58,16 +57,22 @@ public class PlayerWallSlideState : PlayerState
     {
         base.PhysicsUpdate();
 
-        Vector2 currentVelocity = stateMachine.RB.linearVelocity;
+        // 【核心重构】：滑墙摩擦力模拟
+        // 在滑墙状态下，我们不应用普通重力，而是手动限制最大下落速度
+        // 每帧给一个向下的趋势，但限制在 wallSlideSpeed
+        stateMachine.Speed.y -= stateMachine.customGravity * Time.fixedDeltaTime;
 
-        // 如果当前正在往下掉，且掉落速度超过了我们设定的最大滑墙速度
-        if (currentVelocity.y < 0)
+        if (stateMachine.Speed.y < -stateMachine.wallSlideSpeed)
         {
-            // 强行把下落速度锁死在 -wallSlideSpeed (比如 -2f)
-            currentVelocity.y = Mathf.Max(currentVelocity.y, -stateMachine.wallSlideSpeed);
+            stateMachine.Speed.y = -stateMachine.wallSlideSpeed;
         }
 
-        // 把修改后的速度还给刚体
-        stateMachine.RB.linearVelocity = currentVelocity;
+        // 确保 X 轴速度保持为 0 以紧贴墙面
+        stateMachine.Speed.x = 0f;
+    }
+
+    public override void Exit()
+    {
+        base.Exit();
     }
 }

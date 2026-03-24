@@ -104,4 +104,32 @@ public class TransitionManager : MonoBehaviour
 
         mat.SetFloat(radiusID, MAX_RADIUS); // 确保完全透明，不挡屏幕
     }
+    #region 顿帧系统 (Hitstop / Freeze Frame)
+
+    /// <summary>
+    /// 触发全局顿帧效果
+    /// </summary>
+    /// <param name="duration">时间完全静止的真实时间（秒）</param>
+    public void Hitstop(float duration)
+    {
+        // 防御：如果游戏已经被暂停（比如打开了设置菜单），就不要顿帧了
+        if (Time.timeScale == 0) return;
+
+        StartCoroutine(HitstopCoroutine(duration));
+    }
+
+    private IEnumerator HitstopCoroutine(float duration)
+    {
+        Time.timeScale = 0f;
+
+        // 等待指定的真实时间，因为 timeScale 是 0，普通的 WaitForSeconds 也会停止，必须用 Realtime
+        yield return new WaitForSecondsRealtime(duration);
+
+        if (!UIManager.Instance.isUILocked)
+        {
+            Time.timeScale = 1f;
+        }
+    }
+
+    #endregion
 }
