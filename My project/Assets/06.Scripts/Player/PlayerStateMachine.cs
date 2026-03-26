@@ -32,14 +32,13 @@ public class PlayerStateMachine : MonoBehaviour
     public InputActionReference grabAction;
     public Vector2 MoveInput { get; private set; }
 
-    // ================= 蔚蓝自定义物理引擎 =================
     [Header("自定义物理引擎")]
-    // 替代 rb.velocity！我们所有状态修改的都是这个 Speed！
+    // 所有状态修改这个 Speed
     public Vector2 Speed;
-    // 亚像素累加器（极其核心！）
+    // 亚像素累加器
     private Vector2 positionRemainder;
     // 碰撞盒，用于计算包围盒（AABB）射线
-    private BoxCollider2D col;
+    public BoxCollider2D col { get; private set; }
     // ======================================================
 
     [Header("移动配置")]
@@ -68,6 +67,7 @@ public class PlayerStateMachine : MonoBehaviour
     public float maxStamina = 110f;      // 最大体力值
     public float climbStaminaCost = 45f; // 向上爬每秒消耗的体力
     public float holdStaminaCost = 10f;  // 挂在墙上不动每秒消耗的体力
+    public float GrabCooldownCounter { get; private set; } // 抓取冷却器
     public float CurrentStamina { get; set; }
 
     [Header("宽容度机制")]
@@ -77,7 +77,7 @@ public class PlayerStateMachine : MonoBehaviour
     public float CoyoteTimeCounter { get; private set; }
 
     [Header("地面检测参数")]
-    [SerializeField] private LayerMask groundLayer;
+    public LayerMask groundLayer;
     [SerializeField] private float groundCheckDistance = 0.5f;
 
     [Header("墙壁交互参数")]
@@ -90,6 +90,9 @@ public class PlayerStateMachine : MonoBehaviour
     [Header("关卡机制")]
     public Vector2 currentCheckpoint; // 当前记录的重生点坐标
     public float respawnDelay = 1f;   // 死亡后多久复活
+
+    [Header("转场状态")]
+    public bool IsTransitioning { get; set; } // 转场锁
 
     #endregion
     #region 2. Unity 生命周期 (Unity Lifecycle)
@@ -127,11 +130,12 @@ public class PlayerStateMachine : MonoBehaviour
 
     private void Update()
     {
+        if (IsTransitioning) return;
         // 读取输入，存起来供各个状态使用
         MoveInput = moveAction.action.ReadValue<Vector2>();
 
         //记录玩家最后面朝的方向
-        if (MoveInput.x != 0)
+        if (MoveInput.x != 0 && CurrentState != ClimbState)
         {
             FacingDir = Mathf.Sign(MoveInput.x);
             Anim.FlipCharacter(MoveInput.x);
@@ -143,9 +147,14 @@ public class PlayerStateMachine : MonoBehaviour
             WallJumpLockCounter -= Time.deltaTime;
         }
 
-        if (IsGrounded() && CurrentState != DashState)
+        if (IsGrounded() && CurrentState != DashState && Speed.y <= 0)
         {
             CanDash = true; // 只要脚踩地，就恢复冲刺次数
+        }
+
+        if (GrabCooldownCounter > 0)
+        {
+            GrabCooldownCounter -= Time.deltaTime;
         }
 
         //处理土狼时间
@@ -184,6 +193,7 @@ public class PlayerStateMachine : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (IsTransitioning) return;
         if (CurrentState != null)
         {
             CurrentState.PhysicsUpdate();
@@ -253,6 +263,11 @@ public class PlayerStateMachine : MonoBehaviour
         WallJumpLockCounter = wallJumpDuration; // 比如 0.15 秒
         WallJumpDirection = direction; // 记住被弹开的方向
     }
+
+    public void SetGrabCooldown(float time)
+    {
+        GrabCooldownCounter = time;
+    }
     #endregion
 
     private void OnDrawGizmosSelected()
@@ -306,7 +321,7 @@ public class PlayerStateMachine : MonoBehaviour
         // ================= 第 3 幕：呼叫转场大管家！ =================
         // 我们把复活的逻辑打包成一个 Lambda 表达式 (就是那个 () => { ... })，作为参数传给管家
         // 管家会在屏幕【完全黑掉的那一瞬间】，执行这个大括号里的逻辑！
-        TransitionManager.Instance.StartTransition(transform.position, () =>
+        TransitionManager.Instance.StartTransition(() =>
         {
             // -------------------- 全黑时刻发生的事 --------------------
             // 仅仅是偷偷把隐身的尸体运过去，不显示！
@@ -319,7 +334,6 @@ public class PlayerStateMachine : MonoBehaviour
 
     private IEnumerator RespawnSequenceCoroutine()
     {
-        // 1. 稍微等一下，让黑幕先展开一点点，不要刚全黑就爆特效
         yield return new WaitForSeconds(0.2f);
 
         PlayRespawnEffects();
@@ -401,6 +415,41 @@ public class PlayerStateMachine : MonoBehaviour
     #endregion
 
     /// <summary>
+    /// 尝试进行顶角边缘修正
+    /// </summary>
+    /// <param name="currentPos">当前虚拟推演的坐标</param>
+    /// <returns>如果修正成功返回 true，否则返回 false</returns>
+    private bool AttemptCornerCorrection(ref Vector2 currentPos)
+    {
+        float correctionDistance = 0.08f;
+        float step = 0.02f;
+
+        // 尝试向右寻找空隙
+        for (float i = step; i <= correctionDistance; i += step)
+        {
+            Vector2 checkPosRight = currentPos + new Vector2(i, 0.02f);
+            if (!Physics2D.OverlapBox(checkPosRight + col.offset, col.size, 0, groundLayer))
+            {
+                // 如果不撞头了！赶紧把虚拟坐标往右推！
+                currentPos += new Vector2(i, 0);
+                return true; // 修正成功！
+            }
+        }
+
+        // 尝试向左寻找空隙
+        for (float i = step; i <= correctionDistance; i += step)
+        {
+            Vector2 checkPosLeft = currentPos + new Vector2(-i, 0.02f);
+            if (!Physics2D.OverlapBox(checkPosLeft + col.offset, col.size, 0, groundLayer))
+            {
+                currentPos += new Vector2(-i, 0);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
     /// 水平移动
     /// </summary>
     public void MoveH(float moveAmount)
@@ -413,7 +462,7 @@ public class PlayerStateMachine : MonoBehaviour
             positionRemainder.x -= move;
             int sign = (int)Mathf.Sign(move);
 
-            // 【核心修复】：提取当前实际位置，用它来做步进计算
+            // 提取当前实际位置，用它来做步进计算
             Vector2 currentPos = transform.position;
 
             while (move != 0)
@@ -435,7 +484,7 @@ public class PlayerStateMachine : MonoBehaviour
                 }
             }
 
-            // 【核心修复】：循环结束后，一次性将最终计算出的位置赋给玩家
+            // 循环结束后，一次性将最终计算出的位置赋给玩家
             transform.position = currentPos;
         }
     }
@@ -453,7 +502,7 @@ public class PlayerStateMachine : MonoBehaviour
             positionRemainder.y -= move;
             int sign = (int)Mathf.Sign(move);
 
-            // 【核心修复】：提取当前实际位置
+            // 提取当前实际位置
             Vector2 currentPos = transform.position;
 
             while (move != 0)
@@ -468,13 +517,22 @@ public class PlayerStateMachine : MonoBehaviour
                 }
                 else
                 {
+                    if (sign == 1)
+                    {
+                        // 尝试进行边缘修正
+                        if (AttemptCornerCorrection(ref currentPos))
+                        {
+                            // 如果修正成功
+                            // 用 continue 跳过下面的清零代码
+                            continue;
+                        }
+                    }
                     Speed.y = 0f;
                     positionRemainder.y = 0f;
                     break;
                 }
             }
-
-            // 【核心修复】：赋值最终位置
+            // 赋值最终位置
             transform.position = currentPos;//物理引擎与 Transform 的数据同步不是实时的。
         }
     }

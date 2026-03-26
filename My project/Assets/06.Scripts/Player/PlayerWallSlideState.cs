@@ -26,6 +26,13 @@ public class PlayerWallSlideState : PlayerState
         // Mathf.Sign 会把任何正数变成 1，负数变成 -1
         bool isPushingWall = stateMachine.MoveInput.x != 0 && Mathf.Sign(stateMachine.MoveInput.x) == stateMachine.FacingDir;
 
+        // 在 WallSlide 判断之前优先判断 Climb
+        if (stateMachine.grabAction.action.IsPressed() && stateMachine.IsTouchingWall() && stateMachine.CurrentStamina > 0 && stateMachine.GrabCooldownCounter <= 0f)
+        {
+            stateMachine.ChangeState(stateMachine.ClimbState);
+            return;
+        }
+
         if (!stateMachine.IsTouchingWall() || !isPushingWall)
         {
             stateMachine.ChangeState(stateMachine.JumpState);

@@ -28,6 +28,14 @@ public class PlayerNormalState : PlayerState
             stateMachine.Anim.PlayIdle();
         }
 
+        //把冲刺判定放在跳跃判定的上方并且加上 return
+        // 这样如果同时按下，永远优先切入 DashState
+        if (stateMachine.dashAction.action.WasPressedThisFrame() && stateMachine.CanDash)
+        {
+            stateMachine.ChangeState(stateMachine.DashState);
+            return;
+        }
+
         //判断“跳跃缓冲池”里是否有剩余时间
         if (stateMachine.CoyoteTimeCounter > 0f && stateMachine.JumpBufferCounter > 0f)
         {
@@ -45,11 +53,6 @@ public class PlayerNormalState : PlayerState
         if (!stateMachine.IsGrounded() && stateMachine.CoyoteTimeCounter <= 0f)
         {
             stateMachine.ChangeState(stateMachine.JumpState);
-        }
-
-        if (stateMachine.dashAction.action.WasPressedThisFrame() && stateMachine.CanDash)
-        {
-            stateMachine.ChangeState(stateMachine.DashState);
         }
     }
 

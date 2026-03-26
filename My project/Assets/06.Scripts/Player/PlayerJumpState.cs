@@ -25,7 +25,7 @@ public class PlayerJumpState : PlayerState
             stateMachine.Anim.PlayFall();
         }
 
-        // 跳跃打断 (Jump Cut)
+        // 跳跃打断
         // 如果玩家在上升过程中（y速度>0），并且松开了跳跃键
         if (stateMachine.Speed.y > 0 && stateMachine.jumpAction.action.WasReleasedThisFrame())
         {
@@ -35,6 +35,13 @@ public class PlayerJumpState : PlayerState
         if (stateMachine.IsGrounded() && stateMachine.Speed.y <= 0.1f)
         {
             stateMachine.ChangeState(stateMachine.NormalState);
+            return;
+        }
+
+        // 在 WallSlide 判断之前优先判断 Climb
+        if (stateMachine.grabAction.action.IsPressed() && stateMachine.IsTouchingWall() && stateMachine.CurrentStamina > 0 && stateMachine.GrabCooldownCounter <= 0f)
+        {
+            stateMachine.ChangeState(stateMachine.ClimbState);
             return;
         }
 

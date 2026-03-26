@@ -53,19 +53,19 @@ public class TransitionManager : MonoBehaviour
     /// </summary>
     /// <param name="focusWorldPos">转场圆心的世界坐标 (比如小恐龙尸体的位置)</param>
     /// <param name="onMidpoint">当黑屏完全收拢(全黑)时，要执行的动作 (比如传送、复活)</param>
-    public void StartTransition(Vector3 focusWorldPos, System.Action onMidpoint)
+    public void StartTransition(System.Action onMidpoint)
     {
-        StartCoroutine(TransitionRoutine(focusWorldPos, onMidpoint));
+        StartCoroutine(TransitionRoutine(onMidpoint));
     }
 
-    private IEnumerator TransitionRoutine(Vector3 worldPos, System.Action onMidpoint)
+    private IEnumerator TransitionRoutine(System.Action onMidpoint)
     {
         if (irisWipeImage == null || irisWipeImage.material == null) yield break;
 
         Material mat = irisWipeImage.material;
 
         // 将世界坐标转换成屏幕 UV 坐标 (0 到 1 之间)，告诉 Shader 圆心在哪
-        Vector2 screenPos = Camera.main.WorldToViewportPoint(worldPos);
+        Vector2 screenPos = Camera.main.WorldToViewportPoint(Camera.main.transform.position); // 简单起见，从屏幕中心展开
         mat.SetFloat(centerXID, screenPos.x);
         mat.SetFloat(centerYID, screenPos.y);
 
@@ -85,14 +85,10 @@ public class TransitionManager : MonoBehaviour
 
         yield return new WaitForSecondsRealtime(0.2f);
 
-        // 找到屏幕上带有 Player 标签的物体
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-        if (player != null)
-        {
-            Vector2 newScreenPos = Camera.main.WorldToViewportPoint(player.transform.position);
-            mat.SetFloat(centerXID, newScreenPos.x);
-            mat.SetFloat(centerYID, newScreenPos.y);
-        }
+        Vector2 newScreenPos = Camera.main.WorldToViewportPoint(Camera.main.transform.position); // 简单起见，从屏幕中心展开
+        mat.SetFloat(centerXID, newScreenPos.x);
+        mat.SetFloat(centerYID, newScreenPos.y);
+
 
         // 3. 动画第二阶段：向外展开 (Radius 从 0 变回 MAX_RADIUS)
         while (currentRadius < MAX_RADIUS)
