@@ -61,13 +61,14 @@ public class PlayerNormalState : PlayerState
     {
         base.PhysicsUpdate();
 
-        // 【修改这里】：算出玩家期望的目标速度
+        // 算出玩家期望的目标速度
         float targetSpeedX = stateMachine.MoveInput.x * stateMachine.moveSpeed;
 
-        // 设定地面加速度。数值越大，起步和刹车越快（100f 手感比较紧凑，类似蔚蓝；如果调小就会像冰面）
+        // 设定地面加速度。数值越大，起步和刹车越快
         float groundAcceleration = 100f;
 
-        // 【核心魔法】：让当前速度，以地面加速度，平滑地趋近于目标速度
+        //修改Speed的值
+        // 让当前速度，以地面加速度，平滑地趋近于目标速度
         stateMachine.Speed.x = Mathf.MoveTowards(stateMachine.Speed.x, targetSpeedX, groundAcceleration * Time.fixedDeltaTime);
 
         // 模拟重力

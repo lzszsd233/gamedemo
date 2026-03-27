@@ -78,6 +78,7 @@ public class PlayerStateMachine : MonoBehaviour
 
     [Header("地面检测参数")]
     public LayerMask groundLayer;
+    public LayerMask oneWayLayer;
     [SerializeField] private float groundCheckDistance = 0.5f;
 
     [Header("墙壁交互参数")]
@@ -233,9 +234,29 @@ public class PlayerStateMachine : MonoBehaviour
     // 地面检测
     public bool IsGrounded()
     {
-        // 把碰撞盒往下挪一点点(0.05f)探测
+        // 把碰撞盒往下挪一点点0.05f探测
         Vector2 checkPos = RB.position + col.offset + new Vector2(0, -0.05f);
-        return Physics2D.OverlapBox(checkPos, col.size, 0, groundLayer);
+        // 绝对坚固的地面，任何时候碰到都算踩地
+        bool hitSolid = Physics2D.OverlapBox(checkPos, col.size, 0, groundLayer);
+
+        bool hitOneWay = false;
+
+        // 只有在角色没有往上飞（Speed.y <= 0）的时候，单向板才算地面！
+        if (Speed.y <= 0)
+        {
+            hitOneWay = Physics2D.OverlapBox(checkPos, col.size, 0, oneWayLayer);
+
+            if (hitOneWay)
+            {
+                bool alreadyInside = Physics2D.OverlapBox(RB.position + col.offset, col.size, 0, oneWayLayer);
+                if (alreadyInside)
+                {
+                    hitOneWay = false;
+                }
+            }
+        }
+
+        return hitSolid || hitOneWay;
     }
 
     public bool IsTouchingWall()
@@ -508,9 +529,26 @@ public class PlayerStateMachine : MonoBehaviour
             while (move != 0)
             {
                 Vector2 checkPos = currentPos + new Vector2(0, sign * 0.02f);
+
                 bool hitGround = Physics2D.OverlapBox(checkPos + col.offset, col.size, 0, groundLayer);
 
-                if (!hitGround)
+                bool hitOneWay = false;
+
+                if (sign == -1)
+                {
+                    hitOneWay = Physics2D.OverlapBox(checkPos + col.offset, col.size, 0, oneWayLayer);
+
+                    if (hitOneWay)
+                    {
+                        bool alreadyInside = Physics2D.OverlapBox(currentPos + col.offset, col.size, 0, oneWayLayer);
+                        if (alreadyInside)
+                        {
+                            hitOneWay = false;
+                        }
+                    }
+                }
+
+                if (!hitGround && !hitOneWay)
                 {
                     currentPos += new Vector2(0, sign * 0.02f);
                     move -= sign;

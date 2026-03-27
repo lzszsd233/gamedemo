@@ -10,22 +10,21 @@ public struct RoomData
     public string roomName;
     public Rect bounds; // 房间的纯数学矩形边界
 }
+
 public class LevelManager : MonoBehaviour
 {
     public static LevelManager Instance;
-
     [Header("全局依赖")]
     private PlayerStateMachine player;
     public CinemachineConfiner2D globalConfiner;
-
     [Header("转场设置")]
     [Range(0.1f, 1.5f)]
     public float transitionDuration = 0.6f; // 默认延长到 0.6 秒，你可以随时在面板调
 
     // 整个关卡的房间数据列表
     [Header("房间数据")]
-    public List<RoomData> allRooms = new List<RoomData>();
 
+    public List<RoomData> allRooms = new List<RoomData>();
     // 运行时需要的私有变量
     private RoomData currentRoom;
     private PolygonCollider2D dynamicCameraBoundingBox; // 我们用代码动态捏的一个形状，专门喂给摄像机
@@ -39,6 +38,7 @@ public class LevelManager : MonoBehaviour
         dynamicCameraBoundingBox = gameObject.AddComponent<PolygonCollider2D>();
         dynamicCameraBoundingBox.isTrigger = true;
         globalConfiner.BoundingShape2D = dynamicCameraBoundingBox;
+
     }
 
     private void Start()
@@ -48,6 +48,13 @@ public class LevelManager : MonoBehaviour
         if (playerObject != null)
         {
             player = playerObject.GetComponent<PlayerStateMachine>();
+
+            //挂载follow玩家
+            CinemachineCamera cam = globalConfiner.GetComponent<CinemachineCamera>();
+            if (cam != null)
+            {
+                cam.Follow = playerObject.transform;
+            }
 
             if (player != null)
             {
@@ -86,7 +93,6 @@ public class LevelManager : MonoBehaviour
     private IEnumerator TransitionRoutine(RoomData nextRoom)
     {
         player.IsTransitioning = true;
-
         // 记录玩家真实速度，然后清零悬停
         Vector2 preservedSpeed = player.Speed;
         player.Speed = Vector2.zero;
@@ -94,10 +100,13 @@ public class LevelManager : MonoBehaviour
         // 算出要被推向哪里
         Vector3 pushDir = Vector3.zero;
         if (Mathf.Abs(preservedSpeed.x) > Mathf.Abs(preservedSpeed.y))
+        {
             pushDir.x = Mathf.Sign(preservedSpeed.x);
+        }
         else
+        {
             pushDir.y = Mathf.Sign(preservedSpeed.y);
-
+        }
         Vector3 playerStartPos = player.transform.position;
         float targetPushDist = 1.5f; // 我们期望的最大推挤距离
 
@@ -110,6 +119,7 @@ public class LevelManager : MonoBehaviour
             pushDir,                                     // 方向：推挤的方向
             targetPushDist,                              // 距离：最多扫 1.5f
             player.groundLayer                           // 目标：只检测地面层，无视金币/敌人
+
         );
 
         Vector3 playerEndPos;
@@ -141,21 +151,21 @@ public class LevelManager : MonoBehaviour
 
         // 5. 开启平滑的逐帧动画！(这取代了之前的傻等 WaitForSeconds)
         float elapsedTime = 0f;
+
         while (elapsedTime < transitionDuration)
         {
             // 算出进度百分比 (0 到 1)
             float t = elapsedTime / transitionDuration;
             // 套用一个平滑曲线，让移动有“慢-快-慢”的缓动感
             float easeT = Mathf.SmoothStep(0f, 1f, t);
-
             // 让恐龙和摄像机，在这一帧里同时往前走一小步！
+
             player.transform.position = Vector3.Lerp(playerStartPos, playerEndPos, easeT);
             mainCam.transform.position = Vector3.Lerp(camStartPos, camEndPos, easeT);
-
             elapsedTime += Time.deltaTime;
+
             yield return null; // 等待下一帧
         }
-
         // 6. 动画结束，强制对齐终点，防止浮点数误差
         player.transform.position = playerEndPos;
         mainCam.transform.position = camEndPos;
@@ -175,7 +185,6 @@ public class LevelManager : MonoBehaviour
     private void SwitchToRoom(RoomData newRoom, bool playTransition)
     {
         currentRoom = newRoom;
-
         // 根据数学 Rect，手动捏出四个顶点的多边形
         Vector2[] newPoints = new Vector2[4];
         newPoints[0] = new Vector2(newRoom.bounds.xMin, newRoom.bounds.yMin); // 左下
@@ -184,7 +193,6 @@ public class LevelManager : MonoBehaviour
         newPoints[3] = new Vector2(newRoom.bounds.xMax, newRoom.bounds.yMin); // 右下
 
         dynamicCameraBoundingBox.SetPath(0, newPoints);
-
         // 刷新摄像机缓存
         globalConfiner.InvalidateBoundingShapeCache();
     }
@@ -199,5 +207,4 @@ public class LevelManager : MonoBehaviour
             Gizmos.DrawWireCube(room.bounds.center, room.bounds.size);
         }
     }
-
 }
