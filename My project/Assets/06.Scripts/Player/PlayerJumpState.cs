@@ -3,18 +3,47 @@ using UnityEngine.InputSystem;
 
 public class PlayerJumpState : PlayerState
 {
+    private float wallJumpLockTimer = 0f;
+    private float wallJumpDirection = 0f;
+    private bool isSuperJumpMode = false;
+    private float superJumpDirectionX = 0f;
+
     public PlayerJumpState(PlayerStateMachine stateMachine) : base(stateMachine)
     {
     }
 
+    public void ConfigureWallJumpLock(float duration, float direction)
+    {
+        wallJumpLockTimer = duration;
+        wallJumpDirection = direction;
+    }
+
+    public void ConfigureSuperJump(float directionX)
+    {
+        isSuperJumpMode = true;
+        superJumpDirectionX = directionX;
+    }
+
+
     public override void Enter()
     {
         base.Enter();
+
+        if (isSuperJumpMode)
+        {
+            stateMachine.Speed.y = stateMachine.jumpForce * 0.8f;
+            stateMachine.Speed.x = superJumpDirectionX * stateMachine.dashSpeed * 1.2f;
+        }
     }
 
     public override void LogicUpdate()
     {
         base.LogicUpdate();
+
+        if (wallJumpLockTimer > 0)
+        {
+            wallJumpLockTimer -= Time.deltaTime;
+        }
 
         if (stateMachine.Speed.y > 0)
         {
@@ -39,7 +68,7 @@ public class PlayerJumpState : PlayerState
         }
 
         // 在 WallSlide 判断之前优先判断 Climb
-        if (stateMachine.grabAction.action.IsPressed() && stateMachine.IsTouchingWall() && stateMachine.CurrentStamina > 0 && stateMachine.GrabCooldownCounter <= 0f)
+        if (stateMachine.grabAction.action.IsPressed() && stateMachine.IsTouchingWall() && stateMachine.CurrentStamina > 0 && stateMachine.ClimbState.CanGrad())
         {
             stateMachine.ChangeState(stateMachine.ClimbState);
             return;
@@ -52,11 +81,14 @@ public class PlayerJumpState : PlayerState
         if (stateMachine.Speed.y < 0 && stateMachine.IsTouchingWall() && isPushingWall)
         {
             stateMachine.ChangeState(stateMachine.WallSlideState);
+            return;
         }
 
-        if (stateMachine.dashAction.action.WasPressedThisFrame() && stateMachine.CanDash)
+        if (stateMachine.DashBufferCounter > 0f && stateMachine.CanDash)
         {
+            stateMachine.ConsumeDashBuffer();
             stateMachine.ChangeState(stateMachine.DashState);
+            return;// 切状态后加 return
         }
     }
 
@@ -65,23 +97,40 @@ public class PlayerJumpState : PlayerState
         base.PhysicsUpdate();
 
         // 检查是不是刚被墙壁弹出来
-        if (stateMachine.WallJumpLockCounter > 0)
+        if (wallJumpLockTimer > 0)
         {
-            // 锁还在,此时剥夺玩家摇杆的权力
-            // 强制维持被弹开的方向和设定的速度
-            stateMachine.Speed.x = stateMachine.WallJumpDirection * stateMachine.wallJumpForceX;
+            // 锁还在，强制维持被弹开的方向和设定的速度
+            stateMachine.Speed.x = wallJumpDirection * stateMachine.wallJumpForceX;
         }
         else
         {
-            // 【修改这里】：锁解开了！空中的平滑移动控制
+            // 锁解开了！空中的平滑移动控制
             float targetSpeedX = stateMachine.MoveInput.x * stateMachine.moveSpeed;
 
-            // 空中加速度（设置得比地面小一点，比如 60f，能保留更多的弹簧弹飞惯性）
-            float airAcceleration = 60f;
+            float currentAbsSpeedX = Mathf.Abs(stateMachine.Speed.x);
 
-            // 平滑趋近目标速度
-            stateMachine.Speed.x = Mathf.MoveTowards(stateMachine.Speed.x, targetSpeedX, airAcceleration * Time.fixedDeltaTime);
+            // 核心修复：现在只检查状态内部的 isSuperJumpMode 标记
+            if (currentAbsSpeedX > stateMachine.moveSpeed && isSuperJumpMode)
+            {
+                if (stateMachine.MoveInput.x != 0 && Mathf.Sign(stateMachine.MoveInput.x) != Mathf.Sign(stateMachine.Speed.x))
+                {
+                    float brakeAcceleration = 60f;
+                    stateMachine.Speed.x = Mathf.MoveTowards(stateMachine.Speed.x, targetSpeedX, brakeAcceleration * Time.fixedDeltaTime);
+                }
+                else
+                {
+                    float momentumDecay = 10f;
+                    stateMachine.Speed.x = Mathf.MoveTowards(stateMachine.Speed.x, targetSpeedX, momentumDecay * Time.fixedDeltaTime);
+                }
+            }
+            else
+            {
+                // 普通跳跃，或者冲刺末尾的普通起跳，都会走这里，享受正常的空气阻力迅速降速
+                float airAcceleration = 60f;
+                stateMachine.Speed.x = Mathf.MoveTowards(stateMachine.Speed.x, targetSpeedX, airAcceleration * Time.fixedDeltaTime);
+            }
         }
+
         float currentGravity = stateMachine.customGravity;
 
         // 下落重力加倍 (Fall Gravity)
@@ -102,5 +151,11 @@ public class PlayerJumpState : PlayerState
     public override void Exit()
     {
         base.Exit();
+
+        wallJumpLockTimer = 0f;
+        wallJumpDirection = 0f;
+
+        isSuperJumpMode = false;
+        superJumpDirectionX = 0f;
     }
 }

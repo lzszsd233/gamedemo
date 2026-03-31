@@ -3,9 +3,10 @@ using UnityEngine.InputSystem;
 using System.Collections;
 using Unity.Cinemachine;
 
-public class PlayerStateMachine : MonoBehaviour
+public class PlayerStateMachine : MonoBehaviour, IRider
 {
     #region  1.变量与属性(Variables & Properties)
+
     // 当前正在运行的状态
     public PlayerState CurrentState { get; private set; }//属性（Property）
     public PlayerNormalState NormalState { get; private set; }
@@ -67,7 +68,6 @@ public class PlayerStateMachine : MonoBehaviour
     public float maxStamina = 110f;      // 最大体力值
     public float climbStaminaCost = 45f; // 向上爬每秒消耗的体力
     public float holdStaminaCost = 10f;  // 挂在墙上不动每秒消耗的体力
-    public float GrabCooldownCounter { get; private set; } // 抓取冷却器
     public float CurrentStamina { get; set; }
 
     [Header("宽容度机制")]
@@ -75,6 +75,8 @@ public class PlayerStateMachine : MonoBehaviour
     public float JumpBufferCounter { get; private set; } // 倒计时器
     public float coyoteTime = 0.15f; // 土狼时间
     public float CoyoteTimeCounter { get; private set; }
+    public float dashBufferTime = 0.15f;
+    public float DashBufferCounter { get; private set; }
 
     [Header("地面检测参数")]
     public LayerMask groundLayer;
@@ -84,9 +86,6 @@ public class PlayerStateMachine : MonoBehaviour
     [Header("墙壁交互参数")]
     public float wallCheckDistance = 0.55f; // 摸墙射线的长度
     public float wallSlideSpeed = 2f;       // 往下滑的最大速度（比自由落体慢）
-    // 蹬墙跳硬直机制
-    public float WallJumpLockCounter { get; private set; }
-    public float WallJumpDirection { get; private set; } // 记录蹬墙跳的方向（-1或1）
 
     [Header("关卡机制")]
     public Vector2 currentCheckpoint; // 当前记录的重生点坐标
@@ -136,26 +135,15 @@ public class PlayerStateMachine : MonoBehaviour
         MoveInput = moveAction.action.ReadValue<Vector2>();
 
         //记录玩家最后面朝的方向
-        if (MoveInput.x != 0 && CurrentState != ClimbState)
+        if (MoveInput.x != 0 && CurrentState != ClimbState && CurrentState != DashState)
         {
             FacingDir = Mathf.Sign(MoveInput.x);
             Anim.FlipCharacter(MoveInput.x);
         }
 
-        // 更新蹬墙硬直计时器
-        if (WallJumpLockCounter > 0)
-        {
-            WallJumpLockCounter -= Time.deltaTime;
-        }
-
         if (IsGrounded() && CurrentState != DashState && Speed.y <= 0)
         {
             CanDash = true; // 只要脚踩地，就恢复冲刺次数
-        }
-
-        if (GrabCooldownCounter > 0)
-        {
-            GrabCooldownCounter -= Time.deltaTime;
         }
 
         //处理土狼时间
@@ -190,6 +178,16 @@ public class PlayerStateMachine : MonoBehaviour
         {
             CurrentStamina = maxStamina;
         }
+
+        if (DashBufferCounter > 0)
+        {
+            DashBufferCounter -= Time.deltaTime;
+        }
+
+        if (dashAction.action.WasPressedThisFrame())
+        {
+            DashBufferCounter = dashBufferTime;
+        }
     }
 
     private void FixedUpdate()
@@ -201,6 +199,7 @@ public class PlayerStateMachine : MonoBehaviour
 
             MoveH(Speed.x * Time.fixedDeltaTime * 50f);
             MoveV(Speed.y * Time.fixedDeltaTime * 50f);
+
         }
     }
 
@@ -232,38 +231,50 @@ public class PlayerStateMachine : MonoBehaviour
     #endregion
     #region 4. 公开辅助方法
     // 地面检测
-    public bool IsGrounded()
+    public Collider2D GetGroundCollider()
     {
-        // 把碰撞盒往下挪一点点0.05f探测
-        Vector2 checkPos = RB.position + col.offset + new Vector2(0, -0.05f);
-        // 绝对坚固的地面，任何时候碰到都算踩地
-        bool hitSolid = Physics2D.OverlapBox(checkPos, col.size, 0, groundLayer);
+        // 测地面：收缩 X (宽度)，防止蹭到侧墙
+        Vector2 checkSize = new Vector2(col.size.x - 0.1f, col.size.y);
+        Vector2 checkPos = (Vector2)transform.position + col.offset + new Vector2(0, -0.05f);
 
-        bool hitOneWay = false;
+        // 先查脚下有没有坚固的地面
+        Collider2D hitSolid = Physics2D.OverlapBox(checkPos, checkSize, 0, groundLayer);
+        if (hitSolid != null) return hitSolid;
 
-        // 只有在角色没有往上飞（Speed.y <= 0）的时候，单向板才算地面！
+        // 如果没有实体地面，且正在下落，再查有没有单向板
         if (Speed.y <= 0)
         {
-            hitOneWay = Physics2D.OverlapBox(checkPos, col.size, 0, oneWayLayer);
-
-            if (hitOneWay)
+            Collider2D hitOneWay = Physics2D.OverlapBox(checkPos, checkSize, 0, oneWayLayer);
+            if (hitOneWay != null)
             {
-                bool alreadyInside = Physics2D.OverlapBox(RB.position + col.offset, col.size, 0, oneWayLayer);
-                if (alreadyInside)
+                Collider2D alreadyInside = Physics2D.OverlapBox((Vector2)transform.position + col.offset, checkSize, 0, oneWayLayer);
+                if (alreadyInside == null)
                 {
-                    hitOneWay = false;
+                    return hitOneWay;
                 }
             }
         }
+        return null;
+    }
 
-        return hitSolid || hitOneWay;
+    public bool IsGrounded()
+    {
+        return GetGroundCollider() != null;
+    }
+
+    public Collider2D GetWallCollider()
+    {
+        // 【核心修复】：测墙壁：收缩 Y (高度)！防止蹭到地板和天花板！
+        Vector2 checkSize = new Vector2(col.size.x, col.size.y - 0.1f);
+
+        Vector2 checkPos = (Vector2)transform.position + col.offset + new Vector2(FacingDir * 0.05f, 0);
+
+        return Physics2D.OverlapBox(checkPos, checkSize, 0, groundLayer);
     }
 
     public bool IsTouchingWall()
     {
-        // 往面朝方向挪一点点探测
-        Vector2 checkPos = RB.position + col.offset + new Vector2(FacingDir * 0.05f, 0);
-        return Physics2D.OverlapBox(checkPos, col.size, 0, groundLayer);
+        return GetWallCollider() != null;
     }
 
     // 跳跃成功后调用，清空缓冲池
@@ -278,16 +289,9 @@ public class PlayerStateMachine : MonoBehaviour
         CoyoteTimeCounter = 0f;
     }
 
-    // 触发蹬墙跳时调用
-    public void SetWallJumpLock(float direction)
+    public void ConsumeDashBuffer()
     {
-        WallJumpLockCounter = wallJumpDuration; // 比如 0.15 秒
-        WallJumpDirection = direction; // 记住被弹开的方向
-    }
-
-    public void SetGrabCooldown(float time)
-    {
-        GrabCooldownCounter = time;
+        DashBufferCounter = 0f;
     }
     #endregion
 
@@ -307,110 +311,6 @@ public class PlayerStateMachine : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 开启死亡表演协程
-    /// </summary>
-    public void StartDeathSequence()
-    {
-        StartCoroutine(DeathSequenceCoroutine());
-    }
-
-    private IEnumerator DeathSequenceCoroutine()
-    {
-
-        if (UIManager.Instance != null)
-        {
-            UIManager.Instance.SetUILock(true);
-        }
-
-        if (impulseSource != null)
-        {
-            impulseSource.GenerateImpulse();
-        }
-        // 尸体弹飞
-        yield return new WaitForSeconds(0.15f);//只能在协程中使用的延时等待类
-
-        Speed = Vector2.zero;
-
-        Anim.GetComponent<SpriteRenderer>().enabled = false;//unity生命周期，不能关闭自身，只能管SpriteRenderer组件的显示与否
-
-
-        PlayDeathEffects();
-
-        yield return new WaitForSeconds(0.4f);
-
-        // ================= 第 3 幕：呼叫转场大管家！ =================
-        // 我们把复活的逻辑打包成一个 Lambda 表达式 (就是那个 () => { ... })，作为参数传给管家
-        // 管家会在屏幕【完全黑掉的那一瞬间】，执行这个大括号里的逻辑！
-        TransitionManager.Instance.StartTransition(() =>
-        {
-            // -------------------- 全黑时刻发生的事 --------------------
-            // 仅仅是偷偷把隐身的尸体运过去，不显示！
-            PrepareForRespawn();
-
-            // 开启一个新的协程，专门负责“黑幕展开后的重生表演”
-            StartCoroutine(RespawnSequenceCoroutine());
-        });
-    }
-
-    private IEnumerator RespawnSequenceCoroutine()
-    {
-        yield return new WaitForSeconds(0.2f);
-
-        PlayRespawnEffects();
-
-        yield return new WaitForSeconds(0.3f);
-
-        FinalizeRespawn();
-    }
-
-
-    public void PrepareForRespawn()
-    {
-        transform.position = currentCheckpoint;
-
-        Speed = Vector2.zero;
-
-    }
-
-    public void FinalizeRespawn()
-    {
-
-        Anim.GetComponent<SpriteRenderer>().enabled = true;
-
-        ChangeState(NormalState);
-
-        if (UIManager.Instance != null)
-        {
-            UIManager.Instance.SetUILock(false);
-        }
-    }
-
-    /// <summary>
-    /// 在玩家当前位置，瞬间生成并播放死亡粒子特效
-    /// </summary>
-    public void PlayDeathEffects()
-    {
-        if (deathParticlesPrefab != null)
-        {
-            Instantiate(deathParticlesPrefab, transform.position, Quaternion.identity);
-
-            // TODO: 未来可以在这里加上死亡音效的代码
-            // AudioManager.PlaySound("Player_Death");
-        }
-    }
-
-    /// <summary>
-    /// 播放向内聚拢的重生特效
-    /// </summary>
-    public void PlayRespawnEffects()
-    {
-        if (respawnParticlesPrefab != null)
-        {
-            Instantiate(respawnParticlesPrefab, transform.position, Quaternion.identity);
-        }
-    }
-
     #region 触发器检测 (Triggers)
     private void OnTriggerEnter2D(Collider2D collision)
     {
@@ -425,7 +325,7 @@ public class PlayerStateMachine : MonoBehaviour
             return;
         }
 
-        IInteractable interactable = collision.GetComponent<IInteractable>();
+        IInteractable interactable = collision.GetComponentInParent<IInteractable>();
 
         if (interactable != null)
         {
@@ -574,4 +474,59 @@ public class PlayerStateMachine : MonoBehaviour
             transform.position = currentPos;//物理引擎与 Transform 的数据同步不是实时的。
         }
     }
+
+    #region IRider 乘客接口实现
+
+    public void MoveWithPlatform(Vector2 delta)
+    {
+        transform.position += (Vector3)delta;
+
+        if (Speed.y <= 0)
+        {
+            Speed.y = 0;
+            CoyoteTimeCounter = coyoteTime;
+        }
+    }
+
+    public bool WillBeCrushed(Vector2 delta)
+    {
+        // 拿小恐龙的碰撞盒，往即将被推的方向扫一下
+        Vector2 checkSize = col.size;
+        Vector2 checkPos = (Vector2)transform.position + col.offset + delta;
+
+        // 如果那个位置有 Ground，说明小恐龙被平台和墙壁夹成了肉饼！
+        bool isCrushed = Physics2D.OverlapBox(checkPos, checkSize, 0, groundLayer);
+
+        if (isCrushed)
+        {
+            // 触发挤压死亡策略（暂时只打印，后续可以接 DieState）
+            Debug.Log("啊！我被方块挤死了！");
+            if (CurrentState != DieState) ChangeState(DieState);
+        }
+
+        return isCrushed;
+    }
+
+    public bool IsRiding(Transform platform)
+    {
+        Collider2D ground = GetGroundCollider();
+        if (ground != null)
+        {
+            MomentumBlock block = ground.GetComponentInParent<MomentumBlock>();
+            if (block != null && block.transform == platform) return true;
+        }
+
+        if (CurrentState == ClimbState || CurrentState == WallSlideState)
+        {
+            Collider2D wall = GetWallCollider();
+            if (wall != null)
+            {
+                MomentumBlock block = wall.GetComponentInParent<MomentumBlock>();
+                if (block != null && block.transform == platform) return true;
+            }
+        }
+        return false;
+    }
+    #endregion
+
 }

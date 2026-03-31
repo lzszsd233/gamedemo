@@ -135,7 +135,7 @@ GameObject:
   - component: {fileID: 124342084}
   - component: {fileID: 124342085}
   - component: {fileID: 124342086}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: //Player
   m_TagString: Player
   m_Icon: {fileID: 0}
@@ -279,7 +279,7 @@ Transform:
   m_GameObject: {fileID: 124342077}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -9.69, y: -5.331, z: 0}
+  m_LocalPosition: {x: 7.34, y: -5.38, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -314,7 +314,7 @@ MonoBehaviour:
   wallJumpForceY: 13
   wallJumpForceX: 6
   wallJumpDuration: 0.3
-  dashSpeed: 21
+  dashSpeed: 16
   dashDuration: 0.2
   climbSpeed: 4
   maxStamina: 110

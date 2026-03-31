@@ -45,30 +45,24 @@ public class PlayerDashState : PlayerState
             if (dashDirection.x != 0)
             {
                 stateMachine.ConsumeJumpBuffer();
-                // 1. 计算当前冲刺已经过去了多久
                 float dashTimeElapsed = Time.time - dashStartTime;
-
-                // 2. 设定超级跳的极短窗口（比如 0.1 秒，你可以把这个提到大管家里方便调）
                 float superJumpWindow = 0.05f;
 
-                // 3. 判断是否在黄金时间内起跳！
                 if (dashTimeElapsed <= superJumpWindow)
                 {
-
-                    // 赋予正常起跳的垂直速度
-                    stateMachine.Speed.y = stateMachine.jumpForce;
-
-                    // 继承并保持冲刺时极高的水平速度
-                    stateMachine.Speed.x = Mathf.Sign(dashDirection.x) * stateMachine.dashSpeed;
+                    // 触发超级跳：配置状态并切换
+                    stateMachine.JumpState.ConfigureSuperJump(Mathf.Sign(dashDirection.x));
+                    stateMachine.ChangeState(stateMachine.JumpState);
+                    return;
                 }
                 else
                 {
+                    // 触发普通跳：直接切换，不用配置，因为 JumpState 默认就是普通跳
                     stateMachine.Speed.y = stateMachine.jumpForce;
-                    stateMachine.Speed.x = Mathf.Sign(dashDirection.x) * stateMachine.moveSpeed;
+                    stateMachine.Speed.x = Mathf.Sign(dashDirection.x) * stateMachine.dashSpeed;
+                    stateMachine.ChangeState(stateMachine.JumpState);
+                    return;
                 }
-
-                stateMachine.ChangeState(stateMachine.JumpState);
-                return;
             }
         }
 

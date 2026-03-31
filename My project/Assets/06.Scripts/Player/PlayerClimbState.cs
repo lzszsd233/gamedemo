@@ -2,8 +2,19 @@ using UnityEngine;
 
 public class PlayerClimbState : PlayerState
 {
+    private float nextAllowedGrabTime = 0f;
     public PlayerClimbState(PlayerStateMachine stateMachine) : base(stateMachine)
     {
+    }
+
+    public bool CanGrad()
+    {
+        return Time.time >= nextAllowedGrabTime;
+    }
+
+    public void StartCooldown(float duration)
+    {
+        nextAllowedGrabTime = Time.time + duration;
     }
 
     public override void Enter()
@@ -50,13 +61,25 @@ public class PlayerClimbState : PlayerState
                 // 执行蹬墙跳逻辑 (复用我们之前的代码)
                 float jumpDir = -stateMachine.FacingDir;
                 stateMachine.Speed = new Vector2(jumpDir * stateMachine.wallJumpForceX, stateMachine.wallJumpForceY);
-                stateMachine.SetWallJumpLock(jumpDir);
+                stateMachine.JumpState.ConfigureWallJumpLock(stateMachine.wallJumpDuration, jumpDir);
             }
             else
             {
                 stateMachine.CurrentStamina -= 25f;
                 stateMachine.Speed = new Vector2(0f, stateMachine.jumpForce);
-                stateMachine.SetGrabCooldown(0.2f);
+                StartCooldown(0.2f);
+            }
+
+            // 【核心新增】：继承抓着的墙壁的动量！
+            Collider2D wall = stateMachine.GetWallCollider();
+            if (wall != null)
+            {
+                MomentumBlock block = wall.GetComponentInParent<MomentumBlock>();
+                if (block != null)
+                {
+                    // 把墙壁的移动速度叠加给自己！
+                    stateMachine.Speed += block.CurrentVelocity;
+                }
             }
 
             stateMachine.ChangeState(stateMachine.JumpState);

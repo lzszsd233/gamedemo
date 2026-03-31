@@ -30,8 +30,22 @@ public class PlayerNormalState : PlayerState
 
         //把冲刺判定放在跳跃判定的上方并且加上 return
         // 这样如果同时按下，永远优先切入 DashState
-        if (stateMachine.dashAction.action.WasPressedThisFrame() && stateMachine.CanDash)
+        if (stateMachine.DashBufferCounter > 0f && stateMachine.CanDash)
         {
+            // 如果在按冲刺的同一帧（或者跳跃缓冲池里有指令），他按了跳跃
+            if (stateMachine.JumpBufferCounter > 0f)
+            {
+                stateMachine.ConsumeDashBuffer();
+                stateMachine.ConsumeJumpBuffer(); // 消耗跳跃输入
+
+                // 计算方向，配置跳跃状态，然后切换
+                float dir = stateMachine.MoveInput.x != 0 ? Mathf.Sign(stateMachine.MoveInput.x) : stateMachine.FacingDir;
+                stateMachine.JumpState.ConfigureSuperJump(dir);
+                stateMachine.ChangeState(stateMachine.JumpState);
+                return;
+            }
+
+            // 如果没按跳，才老老实实进入普通冲刺状态
             stateMachine.ChangeState(stateMachine.DashState);
             return;
         }
@@ -44,6 +58,19 @@ public class PlayerNormalState : PlayerState
             stateMachine.ConsumeCoyoteTime();//起跳瞬间还能再跳
 
             stateMachine.Speed.y = stateMachine.jumpForce;
+
+            // 2. 【核心修复】：看看脚下踩的是不是动量方块？
+            Collider2D ground = stateMachine.GetGroundCollider();
+            if (ground != null)
+            {
+                MomentumBlock block = ground.GetComponentInParent<MomentumBlock>();
+                if (block != null)
+                {
+                    // 3. 把方块的速度【叠加】到自己身上！
+                    // 如果方块往上飞(25)，你(16)起跳后速度就是 41！方块永远追不上你！
+                    stateMachine.Speed += block.CurrentVelocity;
+                }
+            }
 
             // 切换到跳跃状态
             stateMachine.ChangeState(stateMachine.JumpState);

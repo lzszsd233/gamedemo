@@ -27,7 +27,7 @@ public class PlayerWallSlideState : PlayerState
         bool isPushingWall = stateMachine.MoveInput.x != 0 && Mathf.Sign(stateMachine.MoveInput.x) == stateMachine.FacingDir;
 
         // 在 WallSlide 判断之前优先判断 Climb
-        if (stateMachine.grabAction.action.IsPressed() && stateMachine.IsTouchingWall() && stateMachine.CurrentStamina > 0 && stateMachine.GrabCooldownCounter <= 0f)
+        if (stateMachine.grabAction.action.IsPressed() && stateMachine.IsTouchingWall() && stateMachine.CurrentStamina > 0 && stateMachine.ClimbState.CanGrad())
         {
             stateMachine.ChangeState(stateMachine.ClimbState);
             return;
@@ -36,11 +36,14 @@ public class PlayerWallSlideState : PlayerState
         if (!stateMachine.IsTouchingWall() || !isPushingWall)
         {
             stateMachine.ChangeState(stateMachine.JumpState);
+            return;
         }
 
-        if (stateMachine.dashAction.action.WasPressedThisFrame() && stateMachine.CanDash)
+        if (stateMachine.DashBufferCounter > 0f && stateMachine.CanDash)
         {
+            stateMachine.ConsumeDashBuffer();
             stateMachine.ChangeState(stateMachine.DashState);
+            return;
         }
 
         // 蹬墙跳
@@ -53,10 +56,22 @@ public class PlayerWallSlideState : PlayerState
             stateMachine.Speed = new Vector2(jumpDirection * stateMachine.wallJumpForceX, stateMachine.wallJumpForceY);
 
             // 接下来 0.15 秒不要听玩家的左右摇杆
-            stateMachine.SetWallJumpLock(jumpDirection);
+            stateMachine.JumpState.ConfigureWallJumpLock(stateMachine.wallJumpDuration, jumpDirection);
+
+            // 【核心新增】：继承滑着的墙壁的动量！
+            Collider2D wall = stateMachine.GetWallCollider();
+            if (wall != null)
+            {
+                MomentumBlock block = wall.GetComponentInParent<MomentumBlock>();
+                if (block != null)
+                {
+                    stateMachine.Speed += block.CurrentVelocity;
+                }
+            }
 
             // 切回空中下落状态
             stateMachine.ChangeState(stateMachine.JumpState);
+            return;
         }
     }
 
