@@ -77,8 +77,19 @@ public class PlayerClimbState : PlayerState
                 MomentumBlock block = wall.GetComponentInParent<MomentumBlock>();
                 if (block != null)
                 {
-                    // 把墙壁的移动速度叠加给自己！
-                    stateMachine.Speed += block.CurrentVelocity;
+                    // 【核心平衡】：
+                    // 1. 如果方块在急刹车，吐出了 LiftBoost（比如 30），全额继承！这就是超级跳的奖励！
+                    if (block.LiftBoost != Vector2.zero)
+                    {
+                        stateMachine.Speed += block.LiftBoost;
+                    }
+                    // 2. 如果方块正在赶路（CurrentVelocity），我们只继承一小部分（比如 30% 到 50%）！
+                    // 这样既能感觉被方块带了一下，又绝对达不到超级跳的恐怖高度！
+                    else if (block.CurrentVelocity != Vector2.zero)
+                    {
+                        // 乘以 0.3f 或你觉得合适的手感系数
+                        stateMachine.Speed += block.CurrentVelocity * 0.5f;
+                    }
                 }
             }
 

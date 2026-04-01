@@ -30,11 +30,18 @@ public class AnimationController : MonoBehaviour
     /// 由状态机呼叫动画播放
     /// </summary>
     /// <param name="newStateHash">想要播放的动画号</param>
-    public void ChangeAnimationState(int newStateHash)
+    /// /// <param name="forceRestart">是否无视状态锁定，强制从第0帧重播（针对连续冲刺、连续攻击）</param>
+    public void ChangeAnimationState(int newStateHash, bool forceRestart = false)
     {
         if (currentState == newStateHash) return;
-
-        anim.Play(newStateHash);
+        if (forceRestart)
+        {
+            anim.Play(newStateHash, -1, 0f);
+        }
+        else
+        {
+            anim.Play(newStateHash);
+        }
 
         currentState = newStateHash;
     }
@@ -57,5 +64,5 @@ public class AnimationController : MonoBehaviour
     public void PlayJump() => ChangeAnimationState(JUMP);
     public void PlayFall() => ChangeAnimationState(FALL);
     //public void PlayWallSlide() => ChangeAnimationState(WALL_SLIDE);
-    public void PlayDash() => ChangeAnimationState(DASH);
+    public void PlayDash() => ChangeAnimationState(DASH, true);
 }

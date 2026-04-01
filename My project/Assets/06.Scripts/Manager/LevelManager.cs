@@ -9,6 +9,7 @@ public struct RoomData
 {
     public string roomName;
     public Rect bounds; // 房间的纯数学矩形边界
+    public List<Transform> respawnPoints;
 }
 
 public class LevelManager : MonoBehaviour
@@ -97,6 +98,8 @@ public class LevelManager : MonoBehaviour
         Vector2 preservedSpeed = player.Speed;
         player.Speed = Vector2.zero;
 
+        ResetRoomEntities(currentRoom);
+
         // 算出要被推向哪里
         Vector3 pushDir = Vector3.zero;
         if (Mathf.Abs(preservedSpeed.x) > Mathf.Abs(preservedSpeed.y))
@@ -178,7 +181,33 @@ public class LevelManager : MonoBehaviour
         player.Speed = preservedSpeed;
         player.IsTransitioning = false;
 
-        player.currentCheckpoint = player.transform.position;
+        //复活点
+        if (nextRoom.respawnPoints != null && nextRoom.respawnPoints.Count > 0)
+        {
+            Transform closestPoint = null;
+            float minDistance = float.MaxValue;
+
+            foreach (Transform spawnPoint in nextRoom.respawnPoints)
+            {
+                if (spawnPoint == null) continue;
+
+                float dist = Vector2.Distance(playerEndPos, spawnPoint.position);
+                if (dist < minDistance)
+                {
+                    minDistance = dist;
+                    closestPoint = spawnPoint;
+                }
+            }
+
+            if (closestPoint != null)
+            {
+                player.currentCheckpoint = closestPoint.position;
+            }
+        }
+        else
+        {
+            player.currentCheckpoint = player.transform.position;
+        }
     }
 
     // 更新当前房间数据，并重塑摄像机边界
@@ -197,6 +226,39 @@ public class LevelManager : MonoBehaviour
         globalConfiner.InvalidateBoundingShapeCache();
     }
 
+    /// <summary>
+    /// 找到指定房间内的所有可重置机关，并强制它们恢复出厂设置
+    /// </summary>
+    private void ResetRoomEntities(RoomData roomToReset)
+    {
+        // 防呆：如果是游戏刚开始，还没有老房间，直接跳过
+        if (string.IsNullOrEmpty(roomToReset.roomName)) return;
+
+        // 极其暴力的做法：找遍全宇宙所有实现了 IResettable 接口的脚本
+        // （注意：在大型商业游戏里，我们会把这些机关按房间分组存在 List 里以节省性能，
+        // 但对于我们现在的原型 Demo 来说，这种暴力搜索完全足够且极其简单！）
+
+        // FindObjectsByType 是 Unity 新版的安全查找 API（老版叫 FindObjectsOfType）
+        IResettable[] allEntities = Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None) as IResettable[];
+
+        if (allEntities == null) return;
+
+        foreach (var entity in allEntities)
+        {
+            // 这个机关必须是一个 GameObject
+            MonoBehaviour mb = entity as MonoBehaviour;
+            if (mb != null)
+            {
+                // 如果这个机关的物理坐标，刚好在我们要重置的老房间（bounds）里面！
+                if (roomToReset.bounds.Contains(mb.transform.position))
+                {
+                    // 强制执行它的重置逻辑！
+                    entity.ResetState();
+                }
+            }
+        }
+    }
+
     // 在 Unity 编辑器里画出这些房间边界，方便调整
     private void OnDrawGizmos()
     {
@@ -207,4 +269,6 @@ public class LevelManager : MonoBehaviour
             Gizmos.DrawWireCube(room.bounds.center, room.bounds.size);
         }
     }
+
+
 }

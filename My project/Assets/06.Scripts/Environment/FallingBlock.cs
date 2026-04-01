@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class FallingBlock : MonoBehaviour, IInteractable
+public class FallingBlock : MonoBehaviour, IInteractable, IResettable
 {
     [Header("引用设置")]
     public Transform visualTransform;
@@ -70,5 +70,23 @@ public class FallingBlock : MonoBehaviour, IInteractable
         visualTransform.gameObject.SetActive(true);
 
         isTriggered = false;
+    }
+
+    public void ResetState()
+    {
+        // 1. 如果它正在崩塌或者抖动，立刻掐断它的协程！
+        StopAllCoroutines();
+
+        // 2. 瞬间把自己瞬移回最初记录的位置
+        transform.position = originalPosition;
+        visualTransform.localPosition = Vector3.zero;
+
+        // 3. 重新开启所有的碰撞体和视觉图片
+        foreach (var col in colliders) col.enabled = true;
+        visualTransform.gameObject.SetActive(true);
+
+        // 4. 重置触发锁，允许玩家再次踩上来
+        isTriggered = false;
+
     }
 }

@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class DashCrystal : MonoBehaviour, IInteractable
+public class DashCrystal : MonoBehaviour, IInteractable, IResettable
 {
     public GameObject activeVisual;
     public GameObject outlineVisual;
@@ -61,6 +61,16 @@ public class DashCrystal : MonoBehaviour, IInteractable
             Instantiate(respawnEffectPrefab, transform.position, Quaternion.identity);
         }
 
+        isActive = true;
+        if (activeVisual != null) activeVisual.SetActive(true);
+    }
+
+    public void ResetState()
+    {
+        // 掐断可能正在进行的复活倒计时协程
+        StopAllCoroutines();
+
+        // 强行恢复出厂设置：可用，且显示图片
         isActive = true;
         if (activeVisual != null) activeVisual.SetActive(true);
     }

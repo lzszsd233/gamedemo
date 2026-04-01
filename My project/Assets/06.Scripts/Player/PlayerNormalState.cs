@@ -66,9 +66,19 @@ public class PlayerNormalState : PlayerState
                 MomentumBlock block = ground.GetComponentInParent<MomentumBlock>();
                 if (block != null)
                 {
-                    // 3. 把方块的速度【叠加】到自己身上！
-                    // 如果方块往上飞(25)，你(16)起跳后速度就是 41！方块永远追不上你！
-                    stateMachine.Speed += block.CurrentVelocity;
+                    // 【核心平衡】：
+                    // 1. 如果方块在急刹车，吐出了 LiftBoost（比如 30），全额继承！这就是超级跳的奖励！
+                    if (block.LiftBoost != Vector2.zero)
+                    {
+                        stateMachine.Speed += block.LiftBoost;
+                    }
+                    // 2. 如果方块正在赶路（CurrentVelocity），我们只继承一小部分（比如 30% 到 50%）！
+                    // 这样既能感觉被方块带了一下，又绝对达不到超级跳的恐怖高度！
+                    else if (block.CurrentVelocity != Vector2.zero)
+                    {
+                        // 乘以 0.3f 或你觉得合适的手感系数
+                        stateMachine.Speed += block.CurrentVelocity * 0.5f;
+                    }
                 }
             }
 
