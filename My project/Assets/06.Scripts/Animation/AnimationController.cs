@@ -33,7 +33,7 @@ public class AnimationController : MonoBehaviour
     /// /// <param name="forceRestart">是否无视状态锁定，强制从第0帧重播（针对连续冲刺、连续攻击）</param>
     public void ChangeAnimationState(int newStateHash, bool forceRestart = false)
     {
-        if (currentState == newStateHash) return;
+        if (currentState == newStateHash && !forceRestart) return;
         if (forceRestart)
         {
             anim.Play(newStateHash, -1, 0f);
@@ -65,4 +65,6 @@ public class AnimationController : MonoBehaviour
     public void PlayFall() => ChangeAnimationState(FALL);
     //public void PlayWallSlide() => ChangeAnimationState(WALL_SLIDE);
     public void PlayDash() => ChangeAnimationState(DASH, true);
+
+    public void ForcePlayIdle() => ChangeAnimationState(IDLE, true);
 }

@@ -94,6 +94,7 @@ public class PlayerStateMachine : MonoBehaviour, IRider
     [Header("转场状态")]
     public bool IsTransitioning { get; set; } // 转场锁
 
+
     #endregion
     #region 2. Unity 生命周期 (Unity Lifecycle)
 
@@ -293,6 +294,60 @@ public class PlayerStateMachine : MonoBehaviour, IRider
     {
         DashBufferCounter = 0f;
     }
+
+    /// <summary>
+    /// 【新增】：提供给主菜单或过场动画的硬控开关，彻底切断或恢复玩家输入！
+    /// </summary>
+    public void SetInputEnabled(bool isEnabled)
+    {
+        if (isEnabled)
+        {
+            // 恢复所有输入动作
+            if (moveAction != null) moveAction.action.Enable();
+            if (jumpAction != null) jumpAction.action.Enable();
+            if (dashAction != null) dashAction.action.Enable();
+            if (grabAction != null) grabAction.action.Enable();
+        }
+        else
+        {
+            // 切断所有输入动作（小恐龙只能播放 Idle 动画，无法再接收任何按键）
+            if (moveAction != null) moveAction.action.Disable();
+            if (jumpAction != null) jumpAction.action.Disable();
+            if (dashAction != null) dashAction.action.Disable();
+            if (grabAction != null) grabAction.action.Disable();
+
+            // 确保切断瞬间，没有残留的摇杆输入导致一直跑
+            MoveInput = Vector2.zero;
+        }
+    }
+
+    /// <summary>
+    /// 转场专用：彻底冻结玩家，防止坠落、踩弹簧或移动
+    /// </summary>
+    public void LockPlayerForTransition()
+    {
+        // 1. 开启转场锁（这会让你 Update 和 FixedUpdate 里的逻辑直接 return，免疫重力，悬停在原地）
+        IsTransitioning = true;
+
+        // 2. 瞬间刹车，清空残留动量
+        Speed = Vector2.zero;
+
+        // 3. 切断玩家输入
+        SetInputEnabled(false);
+
+        // 4. 强行切回站立状态
+        // 这样即使他在半空，也会播放乖乖站立呼吸的动画，而不是卡在“跳跃/下落”的某一个诡异帧
+        if (CurrentState != NormalState)
+        {
+            ChangeState(NormalState);
+        }
+
+        if (Anim != null)
+        {
+            Anim.ForcePlayIdle(); // 强制播放 Idle 动画，重置所有动画状态，确保转场过程中角色表现正常
+        }
+    }
+
     #endregion
 
     private void OnDrawGizmosSelected()
@@ -314,6 +369,8 @@ public class PlayerStateMachine : MonoBehaviour, IRider
     #region 触发器检测 (Triggers)
     private void OnTriggerEnter2D(Collider2D collision)
     {
+        if (IsTransitioning) return;
+
         IHazard hazard = collision.GetComponent<IHazard>();
 
         if (hazard != null)
@@ -389,8 +446,9 @@ public class PlayerStateMachine : MonoBehaviour, IRider
             while (move != 0)
             {
                 // 用 currentPos 去做探测，这样每次循环起点都在往前推
+                Vector2 checkSizeH = new Vector2(col.size.x, col.size.y - 0.05f); // 高度减小 0.05
                 Vector2 checkPos = currentPos + new Vector2(sign * 0.02f, 0);
-                bool hitWall = Physics2D.OverlapBox(checkPos + col.offset, col.size, 0, groundLayer);
+                bool hitWall = Physics2D.OverlapBox(checkPos + col.offset, checkSizeH, 0, groundLayer);
 
                 if (!hitWall)
                 {
@@ -401,6 +459,7 @@ public class PlayerStateMachine : MonoBehaviour, IRider
                 {
                     Speed.x = 0f;
                     positionRemainder.x = 0f;
+                    Debug.Log("Hit Wall!");
                     break;
                 }
             }

@@ -5,8 +5,12 @@ public class UIManager : MonoBehaviour
 {
     // 单例模式，方便全局呼叫
     public static UIManager Instance { get; private set; }
+
     [Header("UI 面板引用")]
     public GameObject settingsPanel;
+
+    public GameObject pauseButtonObj;
+
     private bool isPaused = false;
     //全局UI锁
     public bool isUILocked { get; private set; } = false;
@@ -57,10 +61,37 @@ public class UIManager : MonoBehaviour
     }
 
     /// <summary>
+    /// 强行关闭暂停菜单，并恢复时间流速。
+    /// （供“返回主菜单”按钮在转场前调用）
+    /// </summary>
+    public void ForceClosePauseMenu()
+    {
+        if (isPaused)
+        {
+            isPaused = false;
+            if (settingsPanel != null) settingsPanel.SetActive(false);
+            Time.timeScale = 1f; // 极其重要：恢复时间流速！
+        }
+    }
+
+    /// <summary>
     /// 锁定或解锁所有 UI 操作 (供外部调用，如转场、死亡时)
     /// </summary>
     public void SetUILock(bool isLocked)
     {
         isUILocked = isLocked;
+    }
+
+    /// <summary>
+    /// 【新增】：切换主菜单/游戏内 UI 模式
+    /// </summary>
+    public void SetMainMenuMode(bool isMainMenu)
+    {
+        // 如果在主菜单，UI锁死（不响应ESC），且隐藏右上角暂停按钮
+        isUILocked = isMainMenu;
+        if (pauseButtonObj != null)
+        {
+            pauseButtonObj.SetActive(!isMainMenu);
+        }
     }
 }

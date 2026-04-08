@@ -2,7 +2,6 @@ using UnityEngine;
 using Unity.Cinemachine;
 using System.Collections;
 using System.Collections.Generic;
-
 // 定义一个纯数据结构，用来存储房间信息
 [System.Serializable]
 public struct RoomData
@@ -11,20 +10,19 @@ public struct RoomData
     public Rect bounds; // 房间的纯数学矩形边界
     public List<Transform> respawnPoints;
 }
-
 public class LevelManager : MonoBehaviour
 {
-    public static LevelManager Instance;
+    [Header("本关卡的出生点")]
+    public Transform levelStartPoint; // 把本关第一个房间的复活点拖进来
+
     [Header("全局依赖")]
     private PlayerStateMachine player;
     public CinemachineConfiner2D globalConfiner;
     [Header("转场设置")]
     [Range(0.1f, 1.5f)]
     public float transitionDuration = 0.6f; // 默认延长到 0.6 秒，你可以随时在面板调
-
     // 整个关卡的房间数据列表
     [Header("房间数据")]
-
     public List<RoomData> allRooms = new List<RoomData>();
     // 运行时需要的私有变量
     private RoomData currentRoom;
@@ -32,14 +30,58 @@ public class LevelManager : MonoBehaviour
 
     private void Awake()
     {
-        Instance = this;
-
         // 在自己身上动态创建一个物理碰撞体，设置为 Trigger
         // 这个碰撞体永远不参与游戏逻辑，它唯一的使命就是变形成当前房间的形状，喂给摄像机限制器
         dynamicCameraBoundingBox = gameObject.AddComponent<PolygonCollider2D>();
         dynamicCameraBoundingBox.isTrigger = true;
         globalConfiner.BoundingShape2D = dynamicCameraBoundingBox;
 
+    }
+
+    /// <summary>
+    /// 【核心】：由 GameManager 加载完本场景后调用！
+    /// </summary>
+    public void SetupPlayerInLevel(PlayerStateMachine incomingPlayer, Vector2 targetPos)
+    {
+        player = incomingPlayer;
+
+        // 1. 强制传送玩家！
+        // 如果传过来的是正无穷大，说明是“新游戏”，就用关卡默认起点
+        if (float.IsPositiveInfinity(targetPos.x))
+        {
+            if (levelStartPoint != null)
+            {
+                player.transform.position = levelStartPoint.position;
+                player.currentCheckpoint = levelStartPoint.position;
+            }
+        }
+        else
+        {
+            // 如果传过来的是具体数字，说明是“继续游戏读档”，直接瞬移过去！
+            player.transform.position = targetPos;
+            player.currentCheckpoint = targetPos;
+        }
+
+        // 2. 摄像机瞬间对齐，防止穿帮
+        if (globalConfiner != null)
+        {
+            var vcam = globalConfiner.GetComponent<CinemachineCamera>();
+            if (vcam != null)
+            {
+                vcam.Follow = player.transform;
+                vcam.ForceCameraPosition(player.transform.position, Quaternion.identity);
+            }
+        }
+
+        // 3. 算出玩家落在哪个房间，切过去
+        foreach (var room in allRooms)
+        {
+            if (room.bounds.Contains(player.transform.position))
+            {
+                SwitchToRoom(room, false);
+                break;
+            }
+        }
     }
 
     private void Start()
@@ -202,11 +244,17 @@ public class LevelManager : MonoBehaviour
             if (closestPoint != null)
             {
                 player.currentCheckpoint = closestPoint.position;
+
+                // 【核心新增：无缝自动存档！】
+                // 只要跨过边界、锁定了新房间的复活点，立刻存档！
+                if (GameManager.Instance != null)
+                {
+                    // SceneManager.GetActiveScene().name 会获取当前场景名，但在 Additive 模式下，
+                    // 最好直接用当前 GameObject 所在场景的名字
+                    string currentSceneName = gameObject.scene.name;
+                    GameManager.Instance.SaveGameProgress(currentSceneName, closestPoint.position);
+                }
             }
-        }
-        else
-        {
-            player.currentCheckpoint = player.transform.position;
         }
     }
 
@@ -269,6 +317,4 @@ public class LevelManager : MonoBehaviour
             Gizmos.DrawWireCube(room.bounds.center, room.bounds.size);
         }
     }
-
-
 }
