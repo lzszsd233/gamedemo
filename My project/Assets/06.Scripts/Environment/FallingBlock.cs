@@ -60,16 +60,6 @@ public class FallingBlock : MonoBehaviour, IInteractable, IResettable
 
         foreach (var col in colliders) col.enabled = false;
         visualTransform.gameObject.SetActive(false);
-
-        yield return new WaitForSeconds(respawnTime);
-
-
-        transform.position = originalPosition;
-
-        foreach (var col in colliders) col.enabled = true;
-        visualTransform.gameObject.SetActive(true);
-
-        isTriggered = false;
     }
 
     public void ResetState()
@@ -88,5 +78,10 @@ public class FallingBlock : MonoBehaviour, IInteractable, IResettable
         // 4. 重置触发锁，允许玩家再次踩上来
         isTriggered = false;
 
+    }
+
+    public Vector2 GetOriginalPosition()
+    {
+        return originalPosition;
     }
 }

@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 //继承PlayerState（状态基类模板）
 public class PlayerNormalState : PlayerState
 {
+    private float wavedashGraceTimer = 0f;
     public PlayerNormalState(PlayerStateMachine stateMachine) : base(stateMachine)
     {
     }
@@ -12,12 +13,19 @@ public class PlayerNormalState : PlayerState
     public override void Enter()
     {
         base.Enter();
+
+        //wavedashGraceTimer = 0.15f;似乎可以不加
     }
 
 
     public override void LogicUpdate()
     {
         base.LogicUpdate();
+
+        if (wavedashGraceTimer > 0)
+        {
+            wavedashGraceTimer -= Time.deltaTime;
+        }
 
         if (Mathf.Abs(stateMachine.MoveInput.x) > 0)
         {
@@ -30,7 +38,7 @@ public class PlayerNormalState : PlayerState
 
         //把冲刺判定放在跳跃判定的上方并且加上 return
         // 这样如果同时按下，永远优先切入 DashState
-        if (stateMachine.DashBufferCounter > 0f && stateMachine.CanDash)
+        if (stateMachine.DashBufferCounter > 0f && stateMachine.CanDash && stateMachine.ActionLockCounter <= 0f)
         {
             // 如果在按冲刺的同一帧（或者跳跃缓冲池里有指令），他按了跳跃
             if (stateMachine.JumpBufferCounter > 0f)
@@ -101,14 +109,47 @@ public class PlayerNormalState : PlayerState
         // 算出玩家期望的目标速度
         float targetSpeedX = stateMachine.MoveInput.x * stateMachine.moveSpeed;
 
-        // 设定地面加速度。数值越大，起步和刹车越快
-        float groundAcceleration = 100f;
-
-        //修改Speed的值
-        // 让当前速度，以地面加速度，平滑地趋近于目标速度
-        stateMachine.Speed.x = Mathf.MoveTowards(stateMachine.Speed.x, targetSpeedX, groundAcceleration * Time.fixedDeltaTime);
-
-        // 模拟重力
+        // ================= 【核心：带保鲜期的凌波微步摩擦力】 =================
+        if (Mathf.Abs(stateMachine.Speed.x) > stateMachine.moveSpeed)
+        {
+            // 1. 如果玩家反推摇杆（想急刹车）
+            if (stateMachine.MoveInput.x != 0 && Mathf.Sign(stateMachine.MoveInput.x) != Mathf.Sign(stateMachine.Speed.x))
+            {
+                // 瞬间急刹！极大的阻力
+                stateMachine.Speed.x = Mathf.MoveTowards(stateMachine.Speed.x, targetSpeedX, 150f * Time.fixedDeltaTime);
+            }
+            // 2. 如果玩家同向推摇杆
+            else if (stateMachine.MoveInput.x != 0 && Mathf.Sign(stateMachine.MoveInput.x) == Mathf.Sign(stateMachine.Speed.x))
+            {
+                // 【绝杀逻辑】：保鲜期到了吗？！
+                if (wavedashGraceTimer > 0f)
+                {
+                    // 保鲜期内：允许零摩擦打水漂！为你搓招留出 0.15 秒的反应时间！
+                    float slideFriction = 0f;
+                    stateMachine.Speed.x = Mathf.MoveTowards(stateMachine.Speed.x, targetSpeedX, slideFriction * Time.fixedDeltaTime);
+                }
+                else
+                {
+                    // 保鲜期过了：没收极速！强行施加巨大的摩擦力把你拉停！
+                    // 彻底终结“一直按着就不减速”的 Bug！
+                    float forcedFriction = 120f;
+                    stateMachine.Speed.x = Mathf.MoveTowards(stateMachine.Speed.x, targetSpeedX, forcedFriction * Time.fixedDeltaTime);
+                }
+            }
+            // 3. 玩家什么都不按（随波逐流）
+            else
+            {
+                // 自然滑行衰减（保鲜期内滑得远一点，保鲜期过了一样强行拉停）
+                float naturalFriction = (wavedashGraceTimer > 0f) ? 25f : 120f;
+                stateMachine.Speed.x = Mathf.MoveTowards(stateMachine.Speed.x, targetSpeedX, naturalFriction * Time.fixedDeltaTime);
+            }
+        }
+        else
+        {
+            // ================= 正常走路的起步与刹车 =================
+            stateMachine.Speed.x = Mathf.MoveTowards(stateMachine.Speed.x, targetSpeedX, 100f * Time.fixedDeltaTime);
+        }
+        // 模拟重力...
         stateMachine.Speed.y -= stateMachine.customGravity * Time.fixedDeltaTime;
     }
 

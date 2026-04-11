@@ -272,6 +272,38 @@ public class LevelManager : MonoBehaviour
         dynamicCameraBoundingBox.SetPath(0, newPoints);
         // 刷新摄像机缓存
         globalConfiner.InvalidateBoundingShapeCache();
+
+        // ================= 【核心修复：智能锁死小房间摄像机】 =================
+        Camera mainCam = Camera.main;
+        if (mainCam != null && globalConfiner != null)
+        {
+            float camHeight = mainCam.orthographicSize * 2f;
+            float camWidth = camHeight * mainCam.aspect;
+
+            var vcam = globalConfiner.GetComponent<CinemachineCamera>();
+
+            // 如果房间的宽度比摄像机还窄，或者高度比摄像机还矮！
+            if (newRoom.bounds.width <= camWidth || newRoom.bounds.height <= camHeight)
+            {
+                // 房间太小了！拔掉跟随目标，让摄像机死死卡在房间正中央！
+                if (vcam != null)
+                {
+                    vcam.Follow = null; // 取消跟随小恐龙
+
+                    // 强行把摄像机锁在房间中心点（Z轴保持不变）
+                    Vector3 roomCenter = new Vector3(newRoom.bounds.center.x, newRoom.bounds.center.y, vcam.transform.position.z);
+                    vcam.ForceCameraPosition(roomCenter, Quaternion.identity);
+                }
+            }
+            else
+            {
+                // 房间足够大，恢复对小恐龙的跟随！
+                if (vcam != null && player != null)
+                {
+                    vcam.Follow = player.transform;
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -279,28 +311,21 @@ public class LevelManager : MonoBehaviour
     /// </summary>
     private void ResetRoomEntities(RoomData roomToReset)
     {
-        // 防呆：如果是游戏刚开始，还没有老房间，直接跳过
         if (string.IsNullOrEmpty(roomToReset.roomName)) return;
 
-        // 极其暴力的做法：找遍全宇宙所有实现了 IResettable 接口的脚本
-        // （注意：在大型商业游戏里，我们会把这些机关按房间分组存在 List 里以节省性能，
-        // 但对于我们现在的原型 Demo 来说，这种暴力搜索完全足够且极其简单！）
+        // 1. 找遍全宇宙的脚本（包括那些被 SetActive(false) 隐藏掉的！）
+        // FindObjectsInactive.Include 极其关键！如果平台隐藏了自己，不加这句就搜不到它！
+        MonoBehaviour[] allScripts = Object.FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        //在进行全局状态重置时，绝不能遗漏被禁用的对象。
 
-        // FindObjectsByType 是 Unity 新版的安全查找 API（老版叫 FindObjectsOfType）
-        IResettable[] allEntities = Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None) as IResettable[];
-
-        if (allEntities == null) return;
-
-        foreach (var entity in allEntities)
+        foreach (var script in allScripts)
         {
-            // 这个机关必须是一个 GameObject
-            MonoBehaviour mb = entity as MonoBehaviour;
-            if (mb != null)
+            // 2. 【安全的 C# 转换】：如果这个脚本考了 IResettable 证件
+            if (script is IResettable entity)
             {
-                // 如果这个机关的物理坐标，刚好在我们要重置的老房间（bounds）里面！
-                if (roomToReset.bounds.Contains(mb.transform.position))
+                // 3. 【核心修复】：查它“户口本上”的出生点，而不是它现在掉在哪！
+                if (roomToReset.bounds.Contains(entity.GetOriginalPosition()))
                 {
-                    // 强制执行它的重置逻辑！
                     entity.ResetState();
                 }
             }

@@ -31,7 +31,7 @@ public class PlayerClimbState : PlayerState
     {
         base.LogicUpdate();
 
-        if (stateMachine.dashAction.action.WasPressedThisFrame() && stateMachine.CanDash)
+        if (stateMachine.dashAction.action.WasPressedThisFrame() && stateMachine.CanDash && stateMachine.ActionLockCounter <= 0f)
         {
             stateMachine.ChangeState(stateMachine.DashState);
             return;

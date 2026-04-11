@@ -279,7 +279,7 @@ Transform:
   m_GameObject: {fileID: 124342077}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 7.7, y: -1.97, z: 0}
+  m_LocalPosition: {x: -11.83, y: -5.22, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -329,7 +329,6 @@ MonoBehaviour:
   oneWayLayer:
     serializedVersion: 2
     m_Bits: 128
-  groundCheckDistance: 0.6
   wallCheckDistance: 0.55
   wallSlideSpeed: 2
   currentCheckpoint: {x: 0, y: 0}
@@ -689,7 +688,7 @@ Transform:
   m_GameObject: {fileID: 519420028}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2314,7 +2313,7 @@ Canvas:
   m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 20
   m_TargetDisplay: 0
 --- !u!224 &1076777562
 RectTransform:

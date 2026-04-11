@@ -39,7 +39,7 @@ public class PlayerWallSlideState : PlayerState
             return;
         }
 
-        if (stateMachine.DashBufferCounter > 0f && stateMachine.CanDash)
+        if (stateMachine.DashBufferCounter > 0f && stateMachine.CanDash && stateMachine.ActionLockCounter <= 0f)
         {
             stateMachine.ConsumeDashBuffer();
             stateMachine.ChangeState(stateMachine.DashState);

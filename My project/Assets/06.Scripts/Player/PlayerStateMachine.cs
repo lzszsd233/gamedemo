@@ -33,6 +33,9 @@ public class PlayerStateMachine : MonoBehaviour, IRider
     public InputActionReference grabAction;
     public Vector2 MoveInput { get; private set; }
 
+    // 全局行动锁
+    public float ActionLockCounter { get; private set; }
+
     [Header("自定义物理引擎")]
     // 所有状态修改这个 Speed
     public Vector2 Speed;
@@ -81,7 +84,6 @@ public class PlayerStateMachine : MonoBehaviour, IRider
     [Header("地面检测参数")]
     public LayerMask groundLayer;
     public LayerMask oneWayLayer;
-    [SerializeField] private float groundCheckDistance = 0.5f;
 
     [Header("墙壁交互参数")]
     public float wallCheckDistance = 0.55f; // 摸墙射线的长度
@@ -183,6 +185,11 @@ public class PlayerStateMachine : MonoBehaviour, IRider
         if (DashBufferCounter > 0)
         {
             DashBufferCounter -= Time.deltaTime;
+        }
+
+        if (ActionLockCounter > 0)
+        {
+            ActionLockCounter -= Time.deltaTime;
         }
 
         if (dashAction.action.WasPressedThisFrame())
@@ -346,6 +353,14 @@ public class PlayerStateMachine : MonoBehaviour, IRider
         {
             Anim.ForcePlayIdle(); // 强制播放 Idle 动画，重置所有动画状态，确保转场过程中角色表现正常
         }
+    }
+
+    /// <summary>
+    /// 被弹簧等强制机关击中时，锁死玩家的主动技能极短时间，防止状态被瞬间覆写
+    /// </summary>
+    public void SetActionLock(float time)
+    {
+        ActionLockCounter = time;
     }
 
     #endregion

@@ -15,13 +15,14 @@ public class MomentumBlock : MonoBehaviour, IInteractable, IResettable
     public float endPauseTime = 0.2f;
     public float cooldownTime = 0.3f;
 
+    public float startDelayTime = 0.5f;
+
     public Vector2 CurrentVelocity { get; private set; }
 
     public Vector2 LiftBoost { get; private set; }
     private Vector2 startPoint;
-    private bool isMoving = false;
 
-    private enum BlockState { Idle, MovingOut, PausedAtEnd, MovingBack, Cooldown }
+    private enum BlockState { Idle, Preparing, MovingOut, PausedAtEnd, MovingBack, Cooldown }
     private BlockState currentState = BlockState.Idle;
 
     private BoxCollider2D col;
@@ -52,6 +53,38 @@ public class MomentumBlock : MonoBehaviour, IInteractable, IResettable
 
     private IEnumerator SequenceRoutine()
     {
+        // ================= 0. 发车前摇 (抖动预警) =================
+        currentState = BlockState.Preparing;
+
+        float delayTimer = 0f;
+        Vector3 originalVisualPos = visualTransform.localPosition;
+
+        while (delayTimer < startDelayTime)
+        {
+            // 【核心加入：中途下车判定！】
+            // 每一帧都扫描一次，如果玩家离开了，立刻踩死刹车！
+            if (!CheckPlayerRiding())
+            {
+                // 玩家跑了！取消发车！
+                if (visualTransform != null) visualTransform.localPosition = originalVisualPos;
+                currentState = BlockState.Idle; // 恢复闲置状态
+                yield break; // 【神级指令】：直接终止并退出这个协程！后面的代码全都不执行了！
+            }
+
+            // 制造视觉上的剧烈抖动！(注意：只抖动图片 visualTransform，不抖动碰撞体，防止玩家掉下去)
+            if (visualTransform != null)
+            {
+                visualTransform.localPosition = originalVisualPos + (Vector3)(Random.insideUnitCircle * 0.05f);
+            }
+
+            delayTimer += Time.fixedDeltaTime;
+            yield return new WaitForFixedUpdate();
+        }
+
+        // 抖动结束，图片归位
+        if (visualTransform != null) visualTransform.localPosition = originalVisualPos;
+
+
         currentState = BlockState.MovingOut;
         LiftBoost = Vector2.zero;
 
@@ -178,6 +211,11 @@ public class MomentumBlock : MonoBehaviour, IInteractable, IResettable
         CurrentVelocity = Vector2.zero;
         LiftBoost = Vector2.zero;
         currentState = BlockState.Idle;
+    }
+
+    public Vector2 GetOriginalPosition()
+    {
+        return startPoint;
     }
 
 }

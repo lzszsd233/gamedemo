@@ -95,12 +95,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f49dd63dd87822c44a8611cca8a6074c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  visualTransform: {fileID: 0}
+  visualTransform: {fileID: 8843429719270388877}
   endPoint: {fileID: 1354443476361017014}
   maxSpeed: 10
   returnSpeed: 6
   endPauseTime: 0.5
   cooldownTime: 0.3
+  startDelayTime: 0.5
 --- !u!50 &1462384496333186111
 Rigidbody2D:
   serializedVersion: 5

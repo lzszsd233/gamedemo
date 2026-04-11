@@ -55,6 +55,12 @@ public class DashCrystal : MonoBehaviour, IInteractable, IResettable
 
         yield return new WaitForSeconds(respawnTime);
 
+        Vector2 checkSize = new Vector2(0.5f, 0.5f);
+        while (Physics2D.OverlapBox(transform.position, checkSize, 0, LayerMask.GetMask("Player")))
+        {
+            yield return null;
+        }
+
         //TODO: 这里可以加个重生特效
         if (respawnEffectPrefab != null)
         {
@@ -73,5 +79,11 @@ public class DashCrystal : MonoBehaviour, IInteractable, IResettable
         // 强行恢复出厂设置：可用，且显示图片
         isActive = true;
         if (activeVisual != null) activeVisual.SetActive(true);
+    }
+
+    public Vector2 GetOriginalPosition()
+    {
+        // 水晶这辈子都不会移动，所以它现在在哪，它的老家就在哪
+        return transform.position;
     }
 }

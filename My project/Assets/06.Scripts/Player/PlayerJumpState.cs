@@ -32,7 +32,7 @@ public class PlayerJumpState : PlayerState
         if (isSuperJumpMode)
         {
             stateMachine.Speed.y = stateMachine.jumpForce * 0.8f;
-            stateMachine.Speed.x = superJumpDirectionX * stateMachine.dashSpeed * 1.2f;
+            stateMachine.Speed.x = superJumpDirectionX * stateMachine.dashSpeed * 1.1f;
         }
     }
 
@@ -84,7 +84,7 @@ public class PlayerJumpState : PlayerState
             return;
         }
 
-        if (stateMachine.DashBufferCounter > 0f && stateMachine.CanDash)
+        if (stateMachine.DashBufferCounter > 0f && stateMachine.CanDash && stateMachine.ActionLockCounter <= 0f)
         {
             stateMachine.ConsumeDashBuffer();
             stateMachine.ChangeState(stateMachine.DashState);
@@ -99,8 +99,9 @@ public class PlayerJumpState : PlayerState
         // 检查是不是刚被墙壁弹出来
         if (wallJumpLockTimer > 0)
         {
-            // 锁还在，强制维持被弹开的方向和设定的速度
-            stateMachine.Speed.x = wallJumpDirection * stateMachine.wallJumpForceX;
+            // 锁在的时候，绝对不碰 Speed.x
+            // 锁的意义仅仅是：不走下面那个 else 分支，剥夺玩家用 MoveInput.x 减速的权力！
+            // 这样，你起跳时继承的 42 的神速，会毫无保留、不受任何阻力地在这 0.15 秒内全部喷发出来！
         }
         else
         {
@@ -109,24 +110,34 @@ public class PlayerJumpState : PlayerState
 
             float currentAbsSpeedX = Mathf.Abs(stateMachine.Speed.x);
 
-            // 核心修复：现在只检查状态内部的 isSuperJumpMode 标记
-            if (currentAbsSpeedX > stateMachine.moveSpeed && isSuperJumpMode)
+            // 【核心重构：超速状态下的动量保鲜法则】
+            if (currentAbsSpeedX > stateMachine.moveSpeed)
             {
-                if (stateMachine.MoveInput.x != 0 && Mathf.Sign(stateMachine.MoveInput.x) != Mathf.Sign(stateMachine.Speed.x))
+                // 1. 【顺水推舟】：玩家推摇杆的方向，和当前极速飞行的方向一模一样！
+                if (stateMachine.MoveInput.x != 0 && Mathf.Sign(stateMachine.MoveInput.x) == Mathf.Sign(stateMachine.Speed.x))
                 {
-                    float brakeAcceleration = 60f;
+                    // 魔法就在这里：空气阻力为 0！绝不减速！
+                    // 只要你死死按住方向键，30 的速度就会一直保持 30，直到你撞墙或落地！
+                    float momentumDecay = 0f;
+                    stateMachine.Speed.x = Mathf.MoveTowards(stateMachine.Speed.x, targetSpeedX, momentumDecay * Time.fixedDeltaTime);
+                }
+                // 2. 【悬崖勒马】：玩家反推摇杆，想要紧急刹车
+                else if (stateMachine.MoveInput.x != 0 && Mathf.Sign(stateMachine.MoveInput.x) != Mathf.Sign(stateMachine.Speed.x))
+                {
+                    float brakeAcceleration = 50f; // 刹车阻力给大点，保持微操手感
                     stateMachine.Speed.x = Mathf.MoveTowards(stateMachine.Speed.x, targetSpeedX, brakeAcceleration * Time.fixedDeltaTime);
                 }
+                // 3. 【随波逐流】：玩家完全松开了键盘
                 else
                 {
-                    float momentumDecay = 10f;
-                    stateMachine.Speed.x = Mathf.MoveTowards(stateMachine.Speed.x, targetSpeedX, momentumDecay * Time.fixedDeltaTime);
+                    float slideDecay = 2f; // 给一个很小的阻力，让他能在空中飘行很远
+                    stateMachine.Speed.x = Mathf.MoveTowards(stateMachine.Speed.x, targetSpeedX, slideDecay * Time.fixedDeltaTime);
                 }
             }
             else
             {
-                // 普通跳跃，或者冲刺末尾的普通起跳，都会走这里，享受正常的空气阻力迅速降速
-                float airAcceleration = 60f;
+                // 普通跳跃（没携带极速），保持指哪打哪的敏捷手感
+                float airAcceleration = 40f;
                 stateMachine.Speed.x = Mathf.MoveTowards(stateMachine.Speed.x, targetSpeedX, airAcceleration * Time.fixedDeltaTime);
             }
         }

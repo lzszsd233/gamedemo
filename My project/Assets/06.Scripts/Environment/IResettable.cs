@@ -10,4 +10,6 @@ public interface IResettable
     /// 房间大管家会在玩家离开或死亡时，强制呼叫这个方法！
     /// </summary>
     void ResetState();
+
+    Vector2 GetOriginalPosition();
 }
