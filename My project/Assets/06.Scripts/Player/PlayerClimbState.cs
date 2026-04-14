@@ -37,6 +37,34 @@ public class PlayerClimbState : PlayerState
             return;
         }
 
+        // ================= 【核心修复 2：边缘自动登顶】 =================
+        // 如果在往上爬的过程中，雷达突然摸不到墙了（说明头已经越过墙顶了）
+        if (!stateMachine.IsTouchingWall())
+        {
+            // 如果玩家还在死死按着 W 键（想上去）
+            if (stateMachine.MoveInput.y > 0)
+            {
+                // 【神级手感魔法：Ledge Snap】
+                // 瞬间把他往上拔一点点，并往墙的方向推一步！
+                // 这样下一帧他就完美站在平地上了，绝不抽搐！
+                stateMachine.transform.position += new Vector3(stateMachine.FacingDir * 0.4f, 0.15f, 0);
+
+                // 速度清零，防止落地滑冰
+                stateMachine.Speed = Vector2.zero;
+
+                // 完美登顶，切回站立状态！
+                stateMachine.ChangeState(stateMachine.NormalState);
+                return;
+            }
+            else
+            {
+                // 如果玩家没按 W，只是单纯脱手了，才掉进空中
+                stateMachine.ChangeState(stateMachine.JumpState);
+                return;
+            }
+        }
+        // ==============================================================
+
         if (!stateMachine.grabAction.action.IsPressed() || !stateMachine.IsTouchingWall())
         {
             stateMachine.ChangeState(stateMachine.JumpState);

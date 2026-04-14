@@ -22,6 +22,12 @@ public class PlayerNormalState : PlayerState
     {
         base.LogicUpdate();
 
+        if (stateMachine.grabAction.action.IsPressed() && stateMachine.IsTouchingWall() && stateMachine.CurrentStamina > 0)
+        {
+            stateMachine.ChangeState(stateMachine.ClimbState);
+            return;
+        }
+
         if (wavedashGraceTimer > 0)
         {
             wavedashGraceTimer -= Time.deltaTime;
