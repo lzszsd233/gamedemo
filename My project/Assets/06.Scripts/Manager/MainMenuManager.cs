@@ -19,6 +19,10 @@ public class MainMenuManager : MonoBehaviour
 
     private void Start()
     {
+        canvasGroup.DOKill();
+        canvasGroup.alpha = 1f;
+        canvasGroup.interactable = true;
+        canvasGroup.blocksRaycasts = true;
 
         // 1. 锁死 ESC 菜单，隐藏右上角按钮
         if (UIManager.Instance != null)
@@ -54,7 +58,7 @@ public class MainMenuManager : MonoBehaviour
     {
         canvasGroup.interactable = false;
         canvasGroup.blocksRaycasts = false;
-        canvasGroup.DOFade(0f, 0.2f).OnComplete(() =>
+        canvasGroup.DOFade(0f, 0.2f).OnComplete(() =>//导致bug
         {
             if (GameManager.Instance != null) GameManager.Instance.StartNewGame();
         });

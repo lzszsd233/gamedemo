@@ -21,7 +21,6 @@ public class PlayerStateMachine : MonoBehaviour, IRider
     [Header("组件引用")]
     public Rigidbody2D RB { get; private set; }
     public AnimationController Anim { get; private set; }
-    public CinemachineImpulseSource impulseSource;
 
     [Header("视觉特效")]
     public GameObject deathParticlesPrefab;
@@ -105,7 +104,6 @@ public class PlayerStateMachine : MonoBehaviour, IRider
         RB = GetComponent<Rigidbody2D>();
         col = GetComponent<BoxCollider2D>();
         Anim = GetComponent<AnimationController>();
-        impulseSource = GetComponent<CinemachineImpulseSource>();
 
         // 实例化状态
         NormalState = new PlayerNormalState(this);
@@ -363,6 +361,22 @@ public class PlayerStateMachine : MonoBehaviour, IRider
         ActionLockCounter = time;
     }
 
+    /// <summary>
+    /// 强制设定角色的面朝方向（无视玩家输入）
+    /// </summary>
+    /// <param name="direction">-1 为朝左，1 为朝右</param>
+    public void ForceFacingDirection(float direction)
+    {
+        // 确保传入的值是规范的 1 或 -1
+        FacingDir = Mathf.Sign(direction);
+
+        // 强行命令放映员立刻翻转图片！
+        if (Anim != null)
+        {
+            Anim.FlipCharacter(FacingDir);
+        }
+    }
+
     #endregion
 
     private void OnDrawGizmosSelected()
@@ -392,6 +406,7 @@ public class PlayerStateMachine : MonoBehaviour, IRider
         {
             if (CurrentState != DieState)
             {
+                DieState.ConfigureDeath(EventBus.DeathType.Spike);
                 ChangeState(DieState);
             }
             return;
@@ -565,7 +580,7 @@ public class PlayerStateMachine : MonoBehaviour, IRider
     public bool WillBeCrushed(Vector2 delta)
     {
         // 拿小恐龙的碰撞盒，往即将被推的方向扫一下
-        Vector2 checkSize = col.size;
+        Vector2 checkSize = col.size - new Vector2(0.05f, 0.05f);
         Vector2 checkPos = (Vector2)transform.position + col.offset + delta;
 
         // 如果那个位置有 Ground，说明小恐龙被平台和墙壁夹成了肉饼！
@@ -573,12 +588,16 @@ public class PlayerStateMachine : MonoBehaviour, IRider
 
         if (isCrushed)
         {
-            // 触发挤压死亡策略（暂时只打印，后续可以接 DieState）
-            Debug.Log("啊！我被方块挤死了！");
-            if (CurrentState != DieState) ChangeState(DieState);
+            if (CurrentState != DieState)
+            {
+                Debug.Log("啊！我被动量方块无情地挤碎了！");
+                DieState.ConfigureDeath(EventBus.DeathType.Crush);
+                ChangeState(DieState); // 瞬间切入死亡状态爆浆！
+            }
+            return true;
         }
 
-        return isCrushed;
+        return false;
     }
 
     public bool IsRiding(Transform platform)

@@ -11,7 +11,8 @@ GameObject:
   - component: {fileID: 7837800906123417572}
   - component: {fileID: 7300058683945876128}
   - component: {fileID: 6856820147393849902}
-  m_Layer: 3
+  - component: {fileID: 3737515347219737839}
+  m_Layer: 0
   m_Name: Spring
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -118,7 +119,7 @@ BoxCollider2D:
   m_CallbackLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
@@ -134,3 +135,16 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 1.445686, y: 0.6220113}
   m_EdgeRadius: 0
+--- !u!114 &3737515347219737839
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4571986729461897586}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae4c5541d60ee174eb3c85882178cc46, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  bounceForce: 16

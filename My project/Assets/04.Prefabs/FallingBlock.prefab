@@ -227,8 +227,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   visualTransform: {fileID: 8533608985390817370}
-  shakeDuration: 0.5
+  shakeDuration: 1
   shakeIntensity: 0.05
   fallSpeed: 15
   fallDuration: 2
-  respawnTime: 3
+  respawnTime: 1.5

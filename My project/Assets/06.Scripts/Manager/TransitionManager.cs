@@ -14,6 +14,14 @@ public class TransitionManager : MonoBehaviour
     public Image irisWipeImage;      // 挂载了 IrisWipeMaterial 的 UI 图片
     public float transitionSpeed = 2f; // 转场动画的速度 (越小越慢)
 
+    [Header("转场材质包")]
+    public Material irisMaterial;
+    public Material leftToRightMaterial;
+    public Material voidMaterial;
+
+    private System.Action currentOnMidpoint;
+
+
     // 缓存材质的属性 ID (提高性能，不用每次都去查字符串)
     private int radiusID;
     private int centerXID;
@@ -48,57 +56,106 @@ public class TransitionManager : MonoBehaviour
         }
     }
 
+
     /// <summary>
-    /// 【核心接口】：执行一次完整的转场动画 (收缩 -> 停顿 -> 展开)
+    /// 标准转场（只传回调，默认从屏幕中心，用圆形）
+    /// 比如：主菜单进游戏、退出主菜单
     /// </summary>
-    /// <param name="focusWorldPos">转场圆心的世界坐标 (比如小恐龙尸体的位置)</param>
-    /// <param name="onMidpoint">当黑屏完全收拢(全黑)时，要执行的动作 (比如传送、复活)</param>
     public void StartTransition(System.Action onMidpoint)
     {
-        StartCoroutine(TransitionRoutine(onMidpoint));
+        StartTransition(0, onMidpoint);
     }
 
-    private IEnumerator TransitionRoutine(System.Action onMidpoint)
+    /// <summary>
+    /// 高级转场（指定圆心、指定样式）
+    /// 比如：各种花式死亡
+    /// </summary>
+    public void StartTransition(int style, System.Action onMidpoint)
+    {
+        if (irisWipeImage == null) return;
+
+        // 根据传入的样式换材质
+        if (style == 0 && irisMaterial != null) irisWipeImage.material = irisMaterial;
+        else if (style == 1 && leftToRightMaterial != null) irisWipeImage.material = leftToRightMaterial;
+        else if (style == 2 && voidMaterial != null) irisWipeImage.material = voidMaterial;
+
+        // 【核心修复】：不再用 currentOnMidpoint 这种容易漏掉的野路子了！
+        // 直接开启一个统管“收缩-等待-拉开”的超级协程，把所有步骤焊死在一起！
+        StartCoroutine(FullTransitionRoutine(onMidpoint));
+    }
+
+
+    // ================= 【终极闭环协程】 =================
+
+    private IEnumerator FullTransitionRoutine(System.Action onMidpoint)
+    {
+        // 1. 先拉上黑幕 (等待完全变黑)
+        yield return StartCoroutine(CloseBlackScreen());
+
+        // 2. 黑透了！执行外部传进来的逻辑 (比如加载场景、传回复活点)
+        onMidpoint?.Invoke();
+
+        // （可选：如果你觉得加载太快，可以强行让全黑状态多保持 0.2 秒，增加节奏感）
+        // yield return new WaitForSecondsRealtime(0.2f);
+
+        // 【致命遗漏修复：拉开黑幕！】
+        // 3. 逻辑执行完了，新场景或小恐龙已经就位了。
+        // 现在，我们要从复活点（小恐龙的新位置）开始，把黑幕拉开！
+
+        yield return StartCoroutine(OpenBlackScreen());
+    }
+    // ================= 【核心修复 3：补全拆分后的收缩和展开协程】 =================
+
+    /// <summary>
+    /// 动作 1：拉上黑幕（收缩）
+    /// </summary>
+    public IEnumerator CloseBlackScreen()
     {
         if (irisWipeImage == null || irisWipeImage.material == null) yield break;
-
         Material mat = irisWipeImage.material;
 
-        // 将世界坐标转换成屏幕 UV 坐标 (0 到 1 之间)，告诉 Shader 圆心在哪
-        Vector2 screenPos = Camera.main.WorldToViewportPoint(Camera.main.transform.position); // 简单起见，从屏幕中心展开
-        mat.SetFloat(centerXID, screenPos.x);
-        mat.SetFloat(centerYID, screenPos.y);
+        // 【核心修改】：管你外面传什么进来，我只认屏幕正中心！
+        mat.SetFloat(centerXID, 0.5f);
+        mat.SetFloat(centerYID, 0.5f);
 
-        // 向中心收缩 
+        // 收缩动画
         float currentRadius = MAX_RADIUS;
         while (currentRadius > 0f)
         {
-            currentRadius -= Time.unscaledDeltaTime * transitionSpeed; // 用 unscaledDeltaTime 保证即使游戏暂停也能转场
+            currentRadius -= Time.unscaledDeltaTime * transitionSpeed;
             mat.SetFloat(radiusID, Mathf.Max(0f, currentRadius));
-            yield return null; // 等待下一帧
+            yield return null;
         }
+        mat.SetFloat(radiusID, 0f);
 
-        mat.SetFloat(radiusID, 0f); // 确保死透了
-
-        // 极其重要的回调！在全黑的时候，执行外面传进来的逻辑 (比如把小恐龙传送到复活点)
-        onMidpoint?.Invoke();
-
+        // 全黑后停顿一小下，增加窒息感
         yield return new WaitForSecondsRealtime(0.2f);
 
-        Vector2 newScreenPos = Camera.main.WorldToViewportPoint(Camera.main.transform.position); // 简单起见，从屏幕中心展开
-        mat.SetFloat(centerXID, newScreenPos.x);
-        mat.SetFloat(centerYID, newScreenPos.y);
+        // 【最重要的一句】：黑透了！执行你传进来的代码（比如传回复活点、卸载场景）！
+        currentOnMidpoint?.Invoke();
+    }
 
+    /// <summary>
+    /// 动作 2：拉开黑幕（展开）
+    /// </summary>
+    public IEnumerator OpenBlackScreen()
+    {
+        if (irisWipeImage == null || irisWipeImage.material == null) yield break;
+        Material mat = irisWipeImage.material;
 
-        // 3. 动画第二阶段：向外展开 (Radius 从 0 变回 MAX_RADIUS)
+        // 【核心修改】：只认屏幕正中心！
+        mat.SetFloat(centerXID, 0.5f);
+        mat.SetFloat(centerYID, 0.5f);
+
+        // 展开动画
+        float currentRadius = 0f;
         while (currentRadius < MAX_RADIUS)
         {
             currentRadius += Time.unscaledDeltaTime * transitionSpeed;
             mat.SetFloat(radiusID, Mathf.Min(MAX_RADIUS, currentRadius));
             yield return null;
         }
-
-        mat.SetFloat(radiusID, MAX_RADIUS); // 确保完全透明，不挡屏幕
+        mat.SetFloat(radiusID, MAX_RADIUS); // 彻底透明
     }
     #region 顿帧系统 (Hitstop / Freeze Frame)
 

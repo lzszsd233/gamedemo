@@ -15,6 +15,8 @@ public class UIManager : MonoBehaviour
     //全局UI锁
     public bool isUILocked { get; private set; } = false;
 
+    private bool isMainMenuMode = false;
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
@@ -30,6 +32,8 @@ public class UIManager : MonoBehaviour
     private void Update()
     {
         if (isUILocked) return;
+
+        if (isMainMenuMode) return;
         // 允许玩家按键盘的 Esc 键也能呼出/关闭菜单
         if (UnityEngine.InputSystem.Keyboard.current.escapeKey.wasPressedThisFrame)
         {
@@ -87,8 +91,9 @@ public class UIManager : MonoBehaviour
     /// </summary>
     public void SetMainMenuMode(bool isMainMenu)
     {
-        // 如果在主菜单，UI锁死（不响应ESC），且隐藏右上角暂停按钮
-        isUILocked = isMainMenu;
+        isMainMenuMode = isMainMenu;
+
+        // 隐藏/显示 右上角的暂停按钮
         if (pauseButtonObj != null)
         {
             pauseButtonObj.SetActive(!isMainMenu);

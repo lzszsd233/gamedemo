@@ -60,6 +60,30 @@ public class FallingBlock : MonoBehaviour, IInteractable, IResettable
 
         foreach (var col in colliders) col.enabled = false;
         visualTransform.gameObject.SetActive(false);
+
+        // 等待规定的时间
+        yield return new WaitForSeconds(respawnTime);
+
+        // 悄悄把位置移回出生点（但依然保持隐藏和无碰撞）
+        transform.position = originalPosition;
+
+        // 【防卡死雷达】：如果玩家刚好站（或卡）在它重生的位置上，死等！绝不出来挤死玩家！
+        // 假设方块大小是 2x2，我们稍微缩小一点检测范围防误判
+        Vector2 checkSize = new Vector2(1.8f, 1.8f);
+
+        // LayerMask.GetMask("Player")：只扫描玩家所在的层！(确保你的小恐龙 Layer 是 Player)
+        while (Physics2D.OverlapBox(originalPosition, checkSize, 0, LayerMask.GetMask("Player")))
+        {
+            // 玩家不走，我死等
+            yield return null;
+        }
+
+        // 玩家走了，安全！华丽重生！
+        // （如果你有重生特效，可以在这里实例化一个粒子）
+        foreach (var col in colliders) col.enabled = true;
+        visualTransform.gameObject.SetActive(true);
+
+        isTriggered = false; // 重新上膛
     }
 
     public void ResetState()

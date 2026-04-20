@@ -13,6 +13,9 @@ public class MomentumBlock : MonoBehaviour, IInteractable, IResettable
     public float maxSpeed = 30f;
     public float returnSpeed = 10f;
     public float endPauseTime = 0.2f;
+
+    public float liftBoostWindow = 0.1f;
+
     public float cooldownTime = 0.3f;
 
     public float startDelayTime = 0.5f;
@@ -107,9 +110,16 @@ public class MomentumBlock : MonoBehaviour, IInteractable, IResettable
         Vector2 burstDirection = ((Vector2)endPoint.position - startPoint).normalized;
         LiftBoost = burstDirection * maxSpeed;
 
-        yield return new WaitForSeconds(endPauseTime);
-
+        yield return new WaitForSeconds(liftBoostWindow);
         LiftBoost = Vector2.zero;
+
+        float remainingPauseTime = endPauseTime - liftBoostWindow;
+        if (remainingPauseTime > 0)
+        {
+            yield return new WaitForSeconds(remainingPauseTime);
+        }
+
+
         currentState = BlockState.MovingBack;
 
         while ((Vector2)transform.position != startPoint)

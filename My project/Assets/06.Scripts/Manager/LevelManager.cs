@@ -24,6 +24,10 @@ public class LevelManager : MonoBehaviour
     // 整个关卡的房间数据列表
     [Header("房间数据")]
     public List<RoomData> allRooms = new List<RoomData>();
+
+    [Header("关卡危险边界")]
+    public float killYOffset = 2f;
+
     // 运行时需要的私有变量
     private RoomData currentRoom;
     private PolygonCollider2D dynamicCameraBoundingBox; // 我们用代码动态捏的一个形状，专门喂给摄像机
@@ -69,7 +73,13 @@ public class LevelManager : MonoBehaviour
             if (vcam != null)
             {
                 vcam.Follow = player.transform;
-                vcam.ForceCameraPosition(player.transform.position, Quaternion.identity);
+
+                // 【核心修复 2】：绝对不能直接传 player.transform.position（它的 Z 是 0）！
+                // 必须手动把 Z 轴改成 -10f 再传给摄像机！否则摄像机会瞬间埋进地里！
+                Vector3 safeCameraPos = new Vector3(player.transform.position.x, player.transform.position.y, -10f);
+                vcam.ForceCameraPosition(safeCameraPos, Quaternion.identity);
+
+                vcam.gameObject.SetActive(true);
             }
         }
 
@@ -116,17 +126,44 @@ public class LevelManager : MonoBehaviour
 
     private void Update()
     {
-        // 核心数学审判：如果玩家没有在转场，且不在当前房间的数学边界内
-        if (!player.IsTransitioning && !currentRoom.bounds.Contains(player.transform.position))
+        // 1. 防呆：如果没有玩家、玩家已经死了、或者正在转场中，什么都不做
+        if (player == null || !player.gameObject.activeInHierarchy) return;
+        if (player.CurrentState == player.DieState || player.IsTransitioning) return;
+
+        // 2. 核心判定：玩家是否离开了当前房间的边界？
+        // 注意：这里我们用 Contains 判断玩家还在不在当前的 Rect 里
+        if (!currentRoom.bounds.Contains(player.transform.position))
         {
-            // 越界,寻找掉进了哪个新房间
+            // 【玩家越界了！】
+
+            // 3. 第一步：先看看他是不是掉进了其他任何一个房间？
+            bool foundNewRoom = false;
             foreach (var room in allRooms)
             {
+                // 如果在其他的房间里找到了玩家
                 if (room.bounds.Contains(player.transform.position))
                 {
-                    // 找到了新房间，开始转场
+                    // 找到了新房间！立刻开始平滑转场！
                     StartCoroutine(TransitionRoutine(room));
+                    foundNewRoom = true;
                     break;
+                }
+            }
+
+            // 4. 第二步：【终极审判】如果找遍了全世界，都没找到接住他的新房间！
+            if (!foundNewRoom)
+            {
+                // 此时玩家不仅出了当前房间，而且掉进了真正的虚空（没有相邻房间）！
+
+                // 为了视觉表现（让玩家完全掉出屏幕外再死，而不是在边界线上瞬间暴毙），
+                // 我们依然保留一个“容忍度”（比如向下 2 米）。
+                float currentDeathLine = currentRoom.bounds.yMin - killYOffset;
+
+                // 如果他掉得比容忍度还要深，神仙难救！
+                if (player.transform.position.y < currentDeathLine)
+                {
+                    player.DieState.ConfigureDeath(EventBus.DeathType.FallVoid);
+                    player.ChangeState(player.DieState);
                 }
             }
         }
@@ -142,17 +179,43 @@ public class LevelManager : MonoBehaviour
 
         ResetRoomEntities(currentRoom);
 
-        // 算出要被推向哪里
+        // ================= 【终极修复：基于几何越界的推力方向】 =================
         Vector3 pushDir = Vector3.zero;
-        if (Mathf.Abs(preservedSpeed.x) > Mathf.Abs(preservedSpeed.y))
+        Vector3 playerStartPos = player.transform.position;
+
+        // 核心魔法：我们拿玩家现在的坐标，和“旧房间”的四条边去比对！
+        // 如果玩家超出了右边，必定是往右转场；超出了下边，必定是往下转场！
+
+        // 容差值（防止刚好踩在边界上浮点数误判）
+        float epsilon = 0.05f;
+
+        if (playerStartPos.x > currentRoom.bounds.xMax - epsilon)
         {
-            pushDir.x = Mathf.Sign(preservedSpeed.x);
+            pushDir = Vector3.right; // 从右边出去了，往右推
+        }
+        else if (playerStartPos.x < currentRoom.bounds.xMin + epsilon)
+        {
+            pushDir = Vector3.left; // 从左边出去了，往左推
+        }
+        else if (playerStartPos.y > currentRoom.bounds.yMax - epsilon)
+        {
+            pushDir = Vector3.up; // 从顶上出去了，往上推
+        }
+        else if (playerStartPos.y < currentRoom.bounds.yMin + epsilon)
+        {
+            pushDir = Vector3.down; // 从底下出去了，往下推
         }
         else
         {
-            pushDir.y = Mathf.Sign(preservedSpeed.y);
+            // 防呆兜底：如果算不出来（几乎不可能），就用玩家当前的速度方向死马当活马医
+            if (Mathf.Abs(preservedSpeed.x) > Mathf.Abs(preservedSpeed.y))
+                pushDir.x = Mathf.Sign(preservedSpeed.x);
+            else
+                pushDir.y = Mathf.Sign(preservedSpeed.y);
         }
-        Vector3 playerStartPos = player.transform.position;
+        // ========================================================================
+
+
         float targetPushDist = 1.5f; // 我们期望的最大推挤距离
 
         // 防穿模扫描
@@ -189,7 +252,24 @@ public class LevelManager : MonoBehaviour
         // 算出新房间里，摄像机能呆的安全位置（防止拍到黑边）
         float camEndX = Mathf.Clamp(playerEndPos.x, nextRoom.bounds.xMin + camHalfWidth, nextRoom.bounds.xMax - camHalfWidth);
         float camEndY = Mathf.Clamp(playerEndPos.y, nextRoom.bounds.yMin + camHalfHeight, nextRoom.bounds.yMax - camHalfHeight);
-        Vector3 camEndPos = new Vector3(camEndX, camEndY, camStartPos.z);
+
+        // ================= 【核心修复：轴向锁定魔法】 =================
+        // pushDir 是我们之前算出来的推挤方向
+        if (Mathf.Abs(pushDir.y) > 0.5f)
+        {
+            // 如果是上下转场：强行让目标的 X 等于起点的 X！
+            // 这样摄像机就会笔直地向上/向下飞，绝对不会产生横向的漂移感。
+            camEndX = camStartPos.x;
+        }
+        else if (Mathf.Abs(pushDir.x) > 0.5f)
+        {
+            // 如果是左右转场：强行让目标的 Y 等于起点的 Y！
+            // 摄像机笔直左右飞，绝不上下晃动。
+            camEndY = camStartPos.y;
+        }
+        // ============================================================
+
+        Vector3 camEndPos = new Vector3(camEndX, camEndY, -10f);
 
         // 4. 【神级操作】：暂时关掉 Cinemachine，我们自己手动接管摄像机！
         globalConfiner.GetComponent<CinemachineCamera>().enabled = false;
@@ -329,6 +409,18 @@ public class LevelManager : MonoBehaviour
                     entity.ResetState();
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// 供玩家死亡全黑时调用，瞬间重置当前所在房间的所有机关
+    /// </summary>
+    public void ResetCurrentRoomEntities()
+    {
+        // currentRoom 是 LevelManager 内部记录的当前房间数据
+        if (!string.IsNullOrEmpty(currentRoom.roomName))
+        {
+            ResetRoomEntities(currentRoom); // 复用我们之前写的暴力重置方法
         }
     }
 

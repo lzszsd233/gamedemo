@@ -3,12 +3,13 @@ using System.Collections;
 
 public class PlayerDieState : PlayerState
 {
-    private DeathType currentDeathType;
+    private EventBus.DeathType currentDeathType;
 
     public PlayerDieState(PlayerStateMachine stateMachine) : base(stateMachine)
     {
     }
-    public void ConfigureDeath(DeathType type)
+
+    public void ConfigureDeath(EventBus.DeathType type)
     {
         currentDeathType = type;
     }
@@ -22,86 +23,41 @@ public class PlayerDieState : PlayerState
 
         stateMachine.Speed = new Vector2(bounceDirX * 5f, bounceForceY);
 
-        // stateMachine.Anim.Play("Player_Hurt");
+        Debug.Log("【广播站】：大喇叭正在广播玩家死亡！死因是：" + currentDeathType);
 
-        stateMachine.StartCoroutine(DeathSequenceCoroutine());
+        // 2. 【高潮时刻：引爆广播！】
+        // 这一嗓子喊出去，转场管家去拉黑幕，关卡管家去重置房间，完全不用我操心！
+        EventBus.PublishPlayerDied(currentDeathType);
+
+        // 3. 执行自己那点可怜的动画
+        stateMachine.StartCoroutine(SelfDeathAnimationCoroutine());
     }
 
-    // 将原本大管家里的协程直接搬到这里
-    private IEnumerator DeathSequenceCoroutine()
+    // 死亡状态现在只管小恐龙自己的尸体怎么碎！
+    private IEnumerator SelfDeathAnimationCoroutine()
     {
-        if (UIManager.Instance != null) UIManager.Instance.SetUILock(true);
-        if (stateMachine.impulseSource != null) stateMachine.impulseSource.GenerateImpulse();
-
-        // 2. 尸体弹飞延时 (完全遵守你的 0.15 秒)
         yield return new WaitForSeconds(0.15f);
 
-        // 3. 速度清零，隐藏角色
         stateMachine.Speed = Vector2.zero;
         stateMachine.Anim.GetComponent<SpriteRenderer>().enabled = false;
 
-        // 4. 严格按照你原本的时间节点，在角色隐藏后播放对应死法特效
-        switch (currentDeathType)
+        // 【新增细节】：如果是虚空死亡，不爆小球！让他默默消失在黑暗中
+        if (currentDeathType != EventBus.DeathType.FallVoid)
         {
-            case DeathType.Spike:
-                PlaySpikeDeathEffect();
-                break;
-            case DeathType.Crush:
-                PlayCrushDeathEffect();
-                break;
-            case DeathType.FallVoid:
-                PlayFallVoidDeathEffect();
-                break;
+            if (stateMachine.deathParticlesPrefab != null)
+            {
+                Object.Instantiate(stateMachine.deathParticlesPrefab, stateMachine.transform.position, Quaternion.identity);
+            }
         }
 
-        yield return new WaitForSeconds(0.4f);
+        // 死等小球飞完！(假设小球寿命是 0.5 秒，这里等 0.6 秒)
+        yield return new WaitForSeconds(0.2f);
 
-        // 呼叫转场管家，准备黑屏复活
-        TransitionManager.Instance.StartTransition(() =>
-        {
-            stateMachine.transform.position = stateMachine.currentCheckpoint;
-            stateMachine.Speed = Vector2.zero;
-            stateMachine.StartCoroutine(RespawnSequenceCoroutine());
-        });
+        // 【高潮时刻：第二声广播！】
+        // 小球飞完了，画面干净了！
+        // 拿着大喇叭喊：“我碎干净了！收尸队（转场管家）可以上场了！”
+        EventBus.PublishPlayerDeathAnimationFinished();
     }
-
-    private IEnumerator RespawnSequenceCoroutine()
-    {
-        yield return new WaitForSeconds(0.4f);
-
-        if (stateMachine.respawnParticlesPrefab != null)
-        {
-            Object.Instantiate(stateMachine.respawnParticlesPrefab, stateMachine.transform.position, Quaternion.identity);
-        }
-
-        yield return new WaitForSeconds(0.3f);
-
-        stateMachine.Anim.GetComponent<SpriteRenderer>().enabled = true;
-        if (UIManager.Instance != null) UIManager.Instance.SetUILock(false);
-
-        stateMachine.ChangeState(stateMachine.NormalState);
-    }
-
-    private void PlaySpikeDeathEffect()
-    {
-        if (stateMachine.deathParticlesPrefab != null)
-        {
-            Object.Instantiate(stateMachine.deathParticlesPrefab, stateMachine.transform.position, Quaternion.identity);
-        }
-    }
-
-    private void PlayCrushDeathEffect()
-    {
-        // 比如在这里写：变成肉饼的缩放动画、播放骨折音效
-        Debug.Log("播放【变成肉饼】的特效！");
-    }
-
-    private void PlayFallVoidDeathEffect()
-    {
-        // 比如在这里写：角色持续缩小、播放渐远的惨叫声
-        Debug.Log("播放【掉落深渊】的惨叫声！");
-    }
-
     public override void LogicUpdate()
     {
         base.LogicUpdate();
