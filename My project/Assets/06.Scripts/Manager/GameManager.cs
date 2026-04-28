@@ -12,6 +12,7 @@ public class GameManager : MonoBehaviour
     [Header("主菜单回归位置")]
     public Transform menuIdlePoint;
 
+    private EventBus.DeathType lastDeathType;
 
     // 【新增】：存档用的钥匙（Key）
     private const string SAVE_SCENE_KEY = "SavedScene";
@@ -31,11 +32,55 @@ public class GameManager : MonoBehaviour
     private void OnEnable()
     {
         // 【核心修改】：监听“动画播完”的频道！
+        EventBus.OnPlayerDied += RecordDeathType;
         EventBus.OnPlayerDeathAnimationFinished += HandlePlayerDeathAnimationFinished;
+    }
+
+    private void Start()
+    {
+        // 1. 尝试找到小恐龙引用
+        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+        if (playerObj != null) player = playerObj.GetComponent<PlayerStateMachine>();
+
+        // 2. 判断当前是“冷启动”还是“编辑器测试模式”
+        if (SceneManager.sceneCount == 1)
+        {
+            // 【情况 A：冷启动】
+            // 如果内存里只有 Persistent，说明刚打开游戏，自动加载主菜单
+            if (player != null)
+            {
+                // A. 【绝对关键】：确保小恐龙是 激活(Active) 的！这样他才能在主菜单露脸
+                player.gameObject.SetActive(true);
+
+                // B. 【上锁】：切断输入，让他只播 Idle 动画，不准乱动
+                player.SetInputEnabled(false);
+
+                // C. 【传送】：把他送到主菜单那个风景好的位置
+                if (menuIdlePoint != null) player.transform.position = menuIdlePoint.position;
+
+                // D. 【掰脸】：强制让他看向左边（如你之前所愿）
+                player.ForceFacingDirection(1f);
+            }
+
+            if (UIManager.Instance != null) UIManager.Instance.SetMainMenuMode(true);
+
+            // 异步加载主菜单
+            SceneManager.LoadSceneAsync("MainMenu", LoadSceneMode.Additive);
+            Debug.Log("[GameManager] 冷启动成功，已召唤主菜单。");
+        }
+        else
+        {
+            // 【情况 B：编辑器测试】
+            // 如果你手动点开了两个场景运行，直接让关卡长官干活
+            LevelManager levelMgr = Object.FindAnyObjectByType<LevelManager>();
+            if (levelMgr != null) levelMgr.InitializeLevel();
+            Debug.Log("[GameManager] 编辑器 Debug 模式，跳过自动加载。");
+        }
     }
 
     private void OnDisable()
     {
+        EventBus.OnPlayerDied -= RecordDeathType;
         EventBus.OnPlayerDeathAnimationFinished -= HandlePlayerDeathAnimationFinished;
     }
 
@@ -248,6 +293,11 @@ public class GameManager : MonoBehaviour
         player.IsTransitioning = false;
     }
 
+    private void RecordDeathType(EventBus.DeathType deathType)
+    {
+        lastDeathType = deathType;
+    }
+
     // 当听到“小恐龙碎完了”的广播时，统帅才开始行动！
     private void HandlePlayerDeathAnimationFinished()
     {
@@ -255,19 +305,21 @@ public class GameManager : MonoBehaviour
 
         if (TransitionManager.Instance != null)
         {
-            // 呼叫黑幕收缩（样式 0，屏幕中心）
-            TransitionManager.Instance.StartTransition(() =>
+            // 【终极修复】：根据小本本上的记录，决定用几号幕布！
+            int style = 0;
+            if (lastDeathType == EventBus.DeathType.Crush) style = 1;      // 挤死 -> 1号幕布(从左到右)
+            else if (lastDeathType == EventBus.DeathType.FallVoid) style = 2; // 虚空 -> 2号幕布(溶解)
+
+            // 把样式数字 (style) 传进去！不要再用空参数的默认方法了！
+            TransitionManager.Instance.StartTransition(style, () =>
             {
-                // ================= 全黑时刻：复活与重置 =================
                 player.transform.position = player.currentCheckpoint;
                 player.Speed = Vector2.zero;
 
                 LevelManager levelMgr = Object.FindAnyObjectByType<LevelManager>();
                 if (levelMgr != null) levelMgr.ResetCurrentRoomEntities();
 
-                // 开始黑幕展开和聚拢特效的表演
                 StartCoroutine(RespawnSequenceCoroutine());
-                // ==========================================================
             });
         }
     }

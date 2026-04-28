@@ -517,10 +517,15 @@ public class PlayerStateMachine : MonoBehaviour, IRider
 
             while (move != 0)
             {
+                // 【核心修复：给 MoveV 瘦身！】
+                // 往下(或往上)探路时，宽度必须收缩一丁点 (0.1f)
+                // 这保证了即使你死死贴着侧墙，探路盒也绝对不会蹭到墙壁导致重力被没收
+                Vector2 checkSizeV = new Vector2(col.size.x - 0.1f, col.size.y);
+
                 Vector2 checkPos = currentPos + new Vector2(0, sign * 0.02f);
 
-                bool hitGround = Physics2D.OverlapBox(checkPos + col.offset, col.size, 0, groundLayer);
-
+                // 把原来的 col.size 换成 checkSizeV 
+                bool hitGround = Physics2D.OverlapBox(checkPos + col.offset, checkSizeV, 0, groundLayer);
                 bool hitOneWay = false;
 
                 if (sign == -1)
@@ -568,33 +573,92 @@ public class PlayerStateMachine : MonoBehaviour, IRider
 
     public void MoveWithPlatform(Vector2 delta)
     {
-        transform.position += (Vector3)delta;
+        // 1. ================= 防穿模探测 =================
+        // 发射一个和玩家一样大的隐形盒子，朝着方块要带我们去的方向扫射！
+        // 只查 GroundLayer，绝对无视触发器和敌人。
+
+        // 算出推挤方向的单位向量
+        Vector2 pushDir = delta.normalized;
+        // 推挤的绝对距离
+        float pushDist = delta.magnitude;
+
+        RaycastHit2D hit = Physics2D.BoxCast(
+            (Vector2)transform.position + col.offset, // 起点
+            col.size,                                 // 形状
+            0f,                                       // 角度
+            pushDir,                                  // 方向
+            pushDist,                                 // 距离
+            groundLayer                               // 目标层
+        );
+
+        // 2. ================= 决定最终位置 =================
+        if (hit.collider != null)
+        {
+            // 【撞墙了！】
+            // 说明方块要把我们推进一堵死墙里！
+            // 极其硬核的贴墙停步：退后 0.01f 的安全距离，防止浮点数陷进去
+            Vector3 safePos = transform.position + (Vector3)pushDir * (hit.distance - 0.01f);
+            transform.position = safePos;
+
+            // 可选：你甚至可以在这里把小恐龙的速度清零，模拟撞墙的硬直
+        }
+        else
+        {
+            // 【安全！】
+            // 前方畅通无阻，没有任何墙壁。
+            // 直接采用“绝对瞬移”，保证和小恐龙在方块上严丝合缝，绝不抖动！
+            transform.position += (Vector3)delta;
+        }
 
         if (Speed.y <= 0)
         {
             Speed.y = 0;
-            CoyoteTimeCounter = coyoteTime;
+
+            // 【核心修复】：只有当雷达真的还能扫到脚下的实体时，才给土狼补偿！
+            // 如果方块已经从脚下溜走了（被墙刮下来了），绝不给补偿，立刻让他掉下去！
+            if (GetGroundCollider() != null)
+            {
+                CoyoteTimeCounter = coyoteTime;
+            }
+            else
+            {
+                // 脚下空了，瞬间清零，让他立刻感受到重力！
+                CoyoteTimeCounter = 0f;
+                JumpBufferCounter = 0f;
+                // 【双保险】：如果他在 NormalState 假装站着，直接一脚踢去下落！
+                if (CurrentState == NormalState)
+                {
+                    ChangeState(JumpState);
+                }
+            }
         }
     }
 
-    public bool WillBeCrushed(Vector2 delta)
+    public bool WillBeCrushed(Vector2 delta, Transform pusher)
     {
         // 拿小恐龙的碰撞盒，往即将被推的方向扫一下
         Vector2 checkSize = col.size - new Vector2(0.05f, 0.05f);
         Vector2 checkPos = (Vector2)transform.position + col.offset + delta;
 
-        // 如果那个位置有 Ground，说明小恐龙被平台和墙壁夹成了肉饼！
-        bool isCrushed = Physics2D.OverlapBox(checkPos, checkSize, 0, groundLayer);
+        // 【核心魔法】：不仅扫一个，我们要扫出这一块区域内所有的碰撞体！
+        Collider2D[] hits = Physics2D.OverlapBoxAll(checkPos, checkSize, 0, groundLayer);
 
-        if (isCrushed)
+        foreach (var hit in hits)
         {
-            if (CurrentState != DieState)
+            // 审判逻辑：
+            // 如果我撞到的这个东西，不是正在推我的那个方块（pusher）
+            // 并且它也不是我身体的一部分（比如某些子物体）
+            if (hit.transform != pusher && hit.transform != transform)
             {
-                Debug.Log("啊！我被动量方块无情地挤碎了！");
-                DieState.ConfigureDeath(EventBus.DeathType.Crush);
-                ChangeState(DieState); // 瞬间切入死亡状态爆浆！
+                // 那它就是真正的“夺命墙壁”！
+                if (CurrentState != DieState)
+                {
+                    Debug.Log($"[死亡判定] 我被 {pusher.name} 挤在了 {hit.name} 上！");
+                    DieState.ConfigureCrushDeath(delta);
+                    ChangeState(DieState);
+                }
+                return true;
             }
-            return true;
         }
 
         return false;
@@ -622,4 +686,33 @@ public class PlayerStateMachine : MonoBehaviour, IRider
     }
     #endregion
 
+    //=========================================================================
+    // 究极 Debug 监视器：找出“悬空卡死”的真凶！
+    // =========================================================================
+    /* private void OnGUI()
+     {
+         // 只在编辑器和开启了 Debug 时显示
+         if (!Application.isPlaying) return;
+
+         // 定义一个黑底白字的框，防止看不清
+         GUIStyle style = new GUIStyle();
+         style.fontSize = 24;
+         style.normal.textColor = Color.yellow;
+         style.normal.background = Texture2D.blackTexture; // 可选，让字底变黑
+
+         // 在屏幕左上角画一个矩形，把小恐龙所有的底裤全扒出来！
+         GUI.Box(new Rect(10, 10, 400, 200), "");
+
+         string debugInfo = "--- Player Debug Info ---\n" +
+                            $"Current State : {CurrentState?.GetType().Name}\n" +   // 他现在到底在装什么状态？
+                            $"Speed X       : {Speed.x:F3}\n" +                     // X 速度到底是不是 0？
+                            $"Speed Y       : {Speed.y:F3}\n" +                     // Y 速度有没有被吃掉？
+                            $"Is Grounded   : {IsGrounded()}\n" +                   // 雷达有没有瞎报踩地？
+                            $"Is Wall       : {IsTouchingWall()}\n" +               // 雷达有没有瞎报摸墙？
+                            $"Move Input    : {MoveInput}\n" +                      // 看看系统有没有残留你的摇杆信号
+                            $"Coyote Time   : {CoyoteTimeCounter:F2}";              // 看看土狼时间有没有诈尸
+
+         GUI.Label(new Rect(20, 20, 380, 180), debugInfo, style);
+     }
+     */
 }

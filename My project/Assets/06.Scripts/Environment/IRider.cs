@@ -15,7 +15,7 @@ public interface IRider
     /// 平台主动呼叫乘客：我要往你这边挤了，你拿碰撞盒扫一下，看看背后有没有墙？
     /// </summary>
     /// <returns>如果撞墙了返回 true（代表会被挤死）</returns>
-    bool WillBeCrushed(Vector2 delta);
+    bool WillBeCrushed(Vector2 delta, Transform pusher);
 
     bool IsRiding(Transform platform);
 }

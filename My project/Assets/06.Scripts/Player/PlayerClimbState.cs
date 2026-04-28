@@ -25,6 +25,7 @@ public class PlayerClimbState : PlayerState
 
         // 播放抓墙动画 (如果你的小恐龙有的话，没有就用 WallSlide 代替)
         //stateMachine.Anim.PlayWallSlide();
+        stateMachine.Anim.PlayJump();
     }
 
     public override void LogicUpdate()
@@ -71,7 +72,7 @@ public class PlayerClimbState : PlayerState
             return;
         }
 
-        if (stateMachine.IsGrounded())
+        if (stateMachine.IsGrounded() && stateMachine.MoveInput.y < 0)
         {
             stateMachine.ChangeState(stateMachine.NormalState);
             return;

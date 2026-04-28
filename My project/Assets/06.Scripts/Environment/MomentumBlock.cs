@@ -188,18 +188,26 @@ public class MomentumBlock : MonoBehaviour, IInteractable, IResettable
         transform.position += (Vector3)moveDelta;
         Physics2D.SyncTransforms();
 
-        // 4. 【绝对防穿模核心】：我移过来了，现在谁在我的体内，我就把谁硬推出去！
-        // 重新扫描方块现在的内部
-        Collider2D[] hitsInside = Physics2D.OverlapBoxAll((Vector2)transform.position + col.offset, col.size, 0);
+        // 4. 【绝对致命的碾压判定】
+        // 我们不缩小雷达了！我们就用方块极其真实的、一模一样大小的碰撞盒去扫！
+        Vector2 crushCheckSize = col.size - new Vector2(0.05f, 0.05f);
+        Collider2D[] hitsInside = Physics2D.OverlapBoxAll((Vector2)transform.position + col.offset, crushCheckSize, 0);
+
         foreach (var hit in hitsInside)
         {
             IRider rider = hit.GetComponentInParent<IRider>();
-            // 如果你在我体内，且你不是主动跟着我走的乘客
-            if (rider != null && !passengers.Contains(rider))
+            if (rider != null)
             {
-                // 强行把你往我移动的方向推！
-                // 如果推不动（背后有墙），WillBeCrushed 会返回 true 并触发你的死亡！
-                if (!rider.WillBeCrushed(moveDelta))
+                // 【核心修正】：不再跳过乘客！所有在体内的家伙都要查！
+                // 但是！我们要把“我自己(this.transform)”作为 pusher 传给乘客去查！
+                if (rider.WillBeCrushed(moveDelta, this.transform))
+                {
+                    // 如果他真的撞到了“除了我之外”的其他墙，让他去死
+                    continue;
+                }
+
+                // 如果他没撞到其他墙（比如站在我顶上往下走），那我就只是温柔地把他推开
+                if (!passengers.Contains(rider))
                 {
                     col.enabled = false;
                     rider.MoveWithPlatform(moveDelta);

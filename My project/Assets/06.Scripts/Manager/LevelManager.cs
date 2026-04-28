@@ -42,6 +42,90 @@ public class LevelManager : MonoBehaviour
 
     }
 
+    private void Update()
+    {
+        // 1. 防呆：如果没有玩家、玩家已经死了、或者正在转场中，什么都不做
+        if (player == null || !player.gameObject.activeInHierarchy) return;
+        if (player.CurrentState == player.DieState || player.IsTransitioning) return;
+
+        // 2. 核心判定：玩家是否离开了当前房间的边界？
+        // 注意：这里我们用 Contains 判断玩家还在不在当前的 Rect 里
+        if (!currentRoom.bounds.Contains(player.transform.position))
+        {
+            // 【玩家越界了！】
+
+            // 3. 第一步：先看看他是不是掉进了其他任何一个房间？
+            bool foundNewRoom = false;
+            foreach (var room in allRooms)
+            {
+                // 如果在其他的房间里找到了玩家
+                if (room.bounds.Contains(player.transform.position))
+                {
+                    // 找到了新房间！立刻开始平滑转场！
+                    StartCoroutine(TransitionRoutine(room));
+                    foundNewRoom = true;
+                    break;
+                }
+            }
+
+            // 4. 第二步：【终极审判】如果找遍了全世界，都没找到接住他的新房间！
+            if (!foundNewRoom)
+            {
+                // 此时玩家不仅出了当前房间，而且掉进了真正的虚空（没有相邻房间）！
+
+                // 为了视觉表现（让玩家完全掉出屏幕外再死，而不是在边界线上瞬间暴毙），
+                // 我们依然保留一个“容忍度”（比如向下 2 米）。
+                float currentDeathLine = currentRoom.bounds.yMin - killYOffset;
+
+                // 如果他掉得比容忍度还要深，神仙难救！
+                if (player.transform.position.y < currentDeathLine)
+                {
+                    player.DieState.ConfigureDeath(EventBus.DeathType.FallVoid);
+                    player.ChangeState(player.DieState);
+                }
+            }
+        }
+    }
+
+    public void InitializeLevel()
+    {
+        // 确保能找到玩家（即便他在上一秒还是禁用的）
+        if (player == null)
+        {
+            GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
+            if (playerObject != null)
+            {
+                player = playerObject.GetComponent<PlayerStateMachine>();
+            }
+        }
+
+        if (player == null) return;
+
+        // 自动架设本关摄像机
+        if (globalConfiner != null)
+        {
+            var vcam = globalConfiner.GetComponent<CinemachineCamera>();
+            if (vcam != null)
+            {
+                vcam.Follow = player.transform;
+                vcam.PreviousStateIsValid = false; // 瞬间贴脸，不准漂移
+                vcam.gameObject.SetActive(true);
+                vcam.Priority = 100;
+            }
+        }
+
+        // 寻找并切入房间
+        Vector2 playerPos = player.transform.position;
+        foreach (var room in allRooms)
+        {
+            if (room.bounds.Contains(playerPos))
+            {
+                SwitchToRoom(room, false);
+                break;
+            }
+        }
+    }
+
     /// <summary>
     /// 【核心】：由 GameManager 加载完本场景后调用！
     /// </summary>
@@ -94,80 +178,6 @@ public class LevelManager : MonoBehaviour
         }
     }
 
-    private void Start()
-    {
-        GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
-
-        if (playerObject != null)
-        {
-            player = playerObject.GetComponent<PlayerStateMachine>();
-
-            //挂载follow玩家
-            CinemachineCamera cam = globalConfiner.GetComponent<CinemachineCamera>();
-            if (cam != null)
-            {
-                cam.Follow = playerObject.transform;
-            }
-
-            if (player != null)
-            {
-                Vector2 playerPos = player.transform.position;
-                foreach (var room in allRooms)
-                {
-                    if (room.bounds.Contains(playerPos))
-                    {
-                        SwitchToRoom(room, false);
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    private void Update()
-    {
-        // 1. 防呆：如果没有玩家、玩家已经死了、或者正在转场中，什么都不做
-        if (player == null || !player.gameObject.activeInHierarchy) return;
-        if (player.CurrentState == player.DieState || player.IsTransitioning) return;
-
-        // 2. 核心判定：玩家是否离开了当前房间的边界？
-        // 注意：这里我们用 Contains 判断玩家还在不在当前的 Rect 里
-        if (!currentRoom.bounds.Contains(player.transform.position))
-        {
-            // 【玩家越界了！】
-
-            // 3. 第一步：先看看他是不是掉进了其他任何一个房间？
-            bool foundNewRoom = false;
-            foreach (var room in allRooms)
-            {
-                // 如果在其他的房间里找到了玩家
-                if (room.bounds.Contains(player.transform.position))
-                {
-                    // 找到了新房间！立刻开始平滑转场！
-                    StartCoroutine(TransitionRoutine(room));
-                    foundNewRoom = true;
-                    break;
-                }
-            }
-
-            // 4. 第二步：【终极审判】如果找遍了全世界，都没找到接住他的新房间！
-            if (!foundNewRoom)
-            {
-                // 此时玩家不仅出了当前房间，而且掉进了真正的虚空（没有相邻房间）！
-
-                // 为了视觉表现（让玩家完全掉出屏幕外再死，而不是在边界线上瞬间暴毙），
-                // 我们依然保留一个“容忍度”（比如向下 2 米）。
-                float currentDeathLine = currentRoom.bounds.yMin - killYOffset;
-
-                // 如果他掉得比容忍度还要深，神仙难救！
-                if (player.transform.position.y < currentDeathLine)
-                {
-                    player.DieState.ConfigureDeath(EventBus.DeathType.FallVoid);
-                    player.ChangeState(player.DieState);
-                }
-            }
-        }
-    }
 
     // 转场协程
     private IEnumerator TransitionRoutine(RoomData nextRoom)

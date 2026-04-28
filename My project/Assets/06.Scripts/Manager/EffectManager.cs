@@ -55,11 +55,21 @@ public class EffectManager : MonoBehaviour
                 impulseSource.GenerateImpulse();
             }
         }
+        else
+        {
+            // 【绝杀表现】：被方块挤死时，虽然不震屏，但让全世界的时间瞬间静止 0.1 秒！
+            // 此时方块停住了，小恐龙变成了肉饼。
+            // 0.1 秒后，时间恢复，方块无情地从小恐龙的尸体上碾过去！
+            if (TransitionManager.Instance != null)
+            {
+                TransitionManager.Instance.Hitstop(0.1f);
+            }
 
-        // TODO: 以后加了 AudioManager，可以在这里写：
-        // if (deathType == EventBus.DeathType.Void) AudioManager.Play("FallScream");
-        // else AudioManager.Play("DeathSplat");
+            // TODO: 以后加了 AudioManager，可以在这里写：
+            // if (deathType == EventBus.DeathType.Void) AudioManager.Play("FallScream");
+            // else AudioManager.Play("DeathSplat");
+        }
+
+        // 以后还可以加 HandlePlayerDash, HandleStrawberryCollected 等各种特效逻辑！
     }
-
-    // 以后还可以加 HandlePlayerDash, HandleStrawberryCollected 等各种特效逻辑！
 }
